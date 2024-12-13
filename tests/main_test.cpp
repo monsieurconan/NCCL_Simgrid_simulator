@@ -1,72 +1,73 @@
-#include "nccl.h"
+#include "coll.h"
+#include "cstdio"
 #include "cuda.h"
 #include "internal.h"
+#include "nccl.h"
 #include "nccl_internal.h"
 #include "platform.h"
-#include "coll.h"
-#include <iostream>
-#include "util.h"
 #include "smpi/mpi.h"
-#include "cstdio"
+#include "util.h"
+#include <iostream>
 
 size_t start_size = 1e8;
 size_t end_size = 1e8;
 
 double inter_node_bw = 1e11;
 
-COLL coll = ALL_REDUCE; 
+COLL coll = ALL_REDUCE;
 
 int N_STEPS = 1;
 
 int N_GPUS = 2;
 int N_NODES = 20;
 
-bool MPI = N_NODES>=2;
+bool MPI = N_NODES >= 2;
 
-int N_RANKS = N_GPUS*N_NODES;
+int N_RANKS = N_GPUS * N_NODES;
 
-namespace{
-    bool char_equal(const char a[], const char b[], int n){
-        for(int i=0;i<n;++i){
-            if(a[i]!=b[i])
-                return false;
-        }
-        return true;
+namespace {
+bool char_equal(const char a[], const char b[], int n) {
+    for (int i = 0; i < n; ++i) {
+        if (a[i] != b[i]) return false;
     }
+    return true;
+}
 
-    void PRINT(size_t nb, int size, double time, double algbw, double busbw){
-        printf("    %10li     %10li   float  %8.2f   %6.2f   %6.2f\n", nb*size, nb, time*1e6, algbw, busbw);
-    }
+void PRINT(size_t nb, int size, double time, double algbw, double busbw) {
+    printf("    %10li     %10li   float  %8.2f   %6.2f   %6.2f\n", nb * size, nb, time * 1e6, algbw,
+           busbw);
+}
 
-    void print_actors(){
-        auto all_actors = simgrid::s4u::Engine::get_instance()->get_all_actors();
-        for(int i=0;i<all_actors.size();++i){
-            std::cout << all_actors[i]->get_host()->get_name();
-        }
-    }
-
-    void cleanup(){
-        auto actors = simgrid::s4u::Engine::get_instance()->get_all_actors();
-        for(int i=0;i<actors.size();++i){
-            if(actors[i]->get_ppid()==simgrid::s4u::this_actor::get_pid()) actors[i]->kill();
-        }
-    }
-
-    void test_all_gpu(){
-        auto gpus = simgrid::s4u::Engine::get_instance()->get_filtered_hosts([]
-        (simgrid::s4u::Host* host){
-        if(char_equal(host->get_property("type"),"gpu", 3)) return true;
-        else return false;});
-        for(int i=0;i<gpus.size();i++){
-            for(int j=0;j<gpus.size();j++)
-                if(j!=i)
-                    simgrid::s4u::Comm::sendto(gpus[j], gpus[i], 1000);
-        }
+void print_actors() {
+    auto all_actors = simgrid::s4u::Engine::get_instance()->get_all_actors();
+    for (int i = 0; i < all_actors.size(); ++i) {
+        std::cout << all_actors[i]->get_host()->get_name();
     }
 }
 
-template<typename F,typename... Args>
-void actor_wrapper(int user_rank, F code, Args... args){
+void cleanup() {
+    auto actors = simgrid::s4u::Engine::get_instance()->get_all_actors();
+    for (int i = 0; i < actors.size(); ++i) {
+        if (actors[i]->get_ppid() == simgrid::s4u::this_actor::get_pid()) actors[i]->kill();
+    }
+}
+
+void test_all_gpu() {
+    auto gpus =
+        simgrid::s4u::Engine::get_instance()->get_filtered_hosts([](simgrid::s4u::Host *host) {
+            if (char_equal(host->get_property("type"), "gpu", 3))
+                return true;
+            else
+                return false;
+        });
+    for (int i = 0; i < gpus.size(); i++) {
+        for (int j = 0; j < gpus.size(); j++)
+            if (j != i) simgrid::s4u::Comm::sendto(gpus[j], gpus[i], 1000);
+    }
+}
+} // namespace
+
+template <typename F, typename... Args> void actor_wrapper(int user_rank, F code, Args... args) {
     // initialisation of actors extentions
     auto me = simgrid::s4u::Actor::self();
     me->extension_set<simgrid::cuda::cudaActor>(new simgrid::cuda::cudaActor(me));
@@ -77,100 +78,112 @@ void actor_wrapper(int user_rank, F code, Args... args){
     cleanup();
 }
 
-template<typename F,typename... Args>
-void mpi_wrapper(F code, F dummy_code, Args... args){
+template <typename F, typename... Args> void mpi_wrapper(F code, F dummy_code, Args... args) {
     MPI_Init();
     int user_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &user_rank);
-    if(user_rank<N_NODES) actor_wrapper<F, Args...>(user_rank, code, args...);
-    else{
+    if (user_rank < N_NODES)
+        actor_wrapper<F, Args...>(user_rank, code, args...);
+    else {
         dummy_code(args...);
     }
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
 }
 
-void dummy_code_test(enum COLL coll_to_test, size_t nb_test, size_t start_size, int end_size){
+void dummy_code_test(enum COLL coll_to_test, size_t nb_test, size_t start_size, int end_size) {
     MPI_Barrier(MPI_COMM_WORLD);
     std::vector<double> times(nb_test, 0);
     MPI_Reduce(times.data(), times.data(), times.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
 }
 
 // fonction to change to your main
-void nccl_test(enum COLL coll_to_test, size_t nb_test, size_t start_size, int end_size){
+void nccl_test(enum COLL coll_to_test, size_t nb_test, size_t start_size, int end_size) {
     std::vector<cudaStream_t> streams(N_GPUS, nullptr);
     std::vector<ncclComm_t> comms(N_GPUS);
     int user_rank = nccl_actor()->u_rank;
     // initialisation of streams
-    for(int i=0;i<N_GPUS;++i){
+    for (int i = 0; i < N_GPUS; ++i) {
         cudaSetDevice(i);
         cudaStreamCreateWithFlags(&streams[i], 0);
     }
     ncclUniqueId id = 0;
-    if(user_rank==0)ncclGetUniqueId(&id);
-    //std::cout <<"streams initialised on "+simgrid::s4u::this_actor::get_name()+"\n";
-    // initialisation of buffers
-    std::vector<void*> sendbufs(N_GPUS);
-    std::vector<void*> recvbufs(N_GPUS);
-    for(int i=0;i<N_GPUS;++i){
-        cudaMalloc(&sendbufs[i], end_size*sizeof(ncclFloat));
-        cudaMalloc(&recvbufs[i], end_size*sizeof(ncclFloat));
+    if (user_rank == 0) ncclGetUniqueId(&id);
+    // std::cout <<"streams initialised on "+simgrid::s4u::this_actor::get_name()+"\n";
+    //  initialisation of buffers
+    std::vector<void *> sendbufs(N_GPUS);
+    std::vector<void *> recvbufs(N_GPUS);
+    for (int i = 0; i < N_GPUS; ++i) {
+        cudaMalloc(&sendbufs[i], end_size * sizeof(ncclFloat));
+        cudaMalloc(&recvbufs[i], end_size * sizeof(ncclFloat));
     }
     // initialisation of comms
     ncclGroupStart();
-    for(int i=0;i<N_GPUS;++i){
+    for (int i = 0; i < N_GPUS; ++i) {
         cudaSetDevice(i);
-        ncclCommInitRank(&comms[i], N_RANKS, id, i+user_rank*N_GPUS);
+        ncclCommInitRank(&comms[i], N_RANKS, id, i + user_rank * N_GPUS);
     }
     ncclGroupEnd();
-    if(MPI)MPI_Barrier(MPI_COMM_WORLD);
-    //std::cout <<"comms initialised on "+simgrid::s4u::this_actor::get_name()+"\n";
-    // initialisation of graphs
+    if (MPI) MPI_Barrier(MPI_COMM_WORLD);
+    // std::cout <<"comms initialised on "+simgrid::s4u::this_actor::get_name()+"\n";
+    //  initialisation of graphs
     std::vector<cudaGraph_t> graphs(N_GPUS);
     std::vector<cudaGraphExec_t> graphExecs(N_GPUS);
-    if(user_rank==0){
+    if (user_rank == 0) {
         std::cout << "          size          count    type      time    algbw    busbw\n";
         std::cout << "           (B)     (elements)              (us)   (GB/s)   (GB/s)\n";
     }
     std::vector<double> times;
-    for(int iteration=0; iteration<nb_test;iteration++)
-    {
+    for (int iteration = 0; iteration < nb_test; iteration++) {
         // stream capture
-        for(int i=0;i<N_GPUS;++i){
+        for (int i = 0; i < N_GPUS; ++i) {
             cudaStreamBeginCapture(streams[i], cudaStreamCaptureModeThreadLocal);
         }
-        size_t iteration_size = nb_test<=1 ? end_size : start_size*(nb_test-1-iteration)/(nb_test-1) + end_size*(iteration)/(nb_test-1);
+        size_t iteration_size = nb_test <= 1
+                                    ? end_size
+                                    : start_size * (nb_test - 1 - iteration) / (nb_test - 1) +
+                                          end_size * (iteration) / (nb_test - 1);
         ncclGroupStart();
-        for(int i=0;i<N_GPUS;++i){
-            switch (coll_to_test)
-            {
+        for (int i = 0; i < N_GPUS; ++i) {
+            switch (coll_to_test) {
             case REDUCE:
-                ncclReduce(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, ncclSum, 0, comms[i], streams[i]);
+                ncclReduce(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, ncclSum, 0,
+                           comms[i], streams[i]);
                 break;
             case ALL_REDUCE:
-                ncclAllReduce(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, ncclSum, comms[i], streams[i]);
+                ncclAllReduce(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, ncclSum,
+                              comms[i], streams[i]);
                 break;
             case BROADCAST:
                 ncclBcast(nullptr, iteration_size, ncclFloat, 0, comms[i], streams[i]);
                 break;
             case REDUCE_SCATTER:
-                ncclReduceScatter(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, ncclSum, comms[i], streams[i]);
+                ncclReduceScatter(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, ncclSum,
+                                  comms[i], streams[i]);
                 break;
             case ALL_GATHER:
-                ncclAllGather(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, comms[i], streams[i]);
+                ncclAllGather(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, comms[i],
+                              streams[i]);
                 break;
             case GATHER:
-                ncclGather(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, 0, comms[i], streams[i]);
+                ncclGather(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, 0, comms[i],
+                           streams[i]);
                 break;
             case SCATTER:
-                ncclScatter(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, 0, comms[i], streams[i]);
+                ncclScatter(sendbufs[i], recvbufs[i], iteration_size, ncclFloat, 0, comms[i],
+                            streams[i]);
                 break;
             case ALL_TO_ALL:
-                ncclAllToAll(sendbufs[i], recvbufs[i], iteration_size,iteration_size, ncclFloat, ncclFloat, comms[i], streams[i]);
+                ncclAllToAll(sendbufs[i], recvbufs[i], iteration_size, iteration_size, ncclFloat,
+                             ncclFloat, comms[i], streams[i]);
                 break;
             case SENDRECV:
-                ncclSend(sendbufs[i], iteration_size, ncclFloat, user_rank==N_NODES-1 ? i : (user_rank+1)*N_GPUS + i, comms[i], streams[i]);
-                ncclRecv(recvbufs[i], iteration_size, ncclFloat, user_rank==0 ? N_RANKS-N_NODES + i : (user_rank-1)*N_GPUS + i , comms[i], streams[i]);
+                ncclSend(sendbufs[i], iteration_size, ncclFloat,
+                         user_rank == N_NODES - 1 ? i : (user_rank + 1) * N_GPUS + i, comms[i],
+                         streams[i]);
+                ncclRecv(recvbufs[i], iteration_size, ncclFloat,
+                         user_rank == 0 ? N_RANKS - N_NODES + i : (user_rank - 1) * N_GPUS + i,
+                         comms[i], streams[i]);
                 break;
             case DEBUG:
                 debugTest(streams[i]);
@@ -179,38 +192,43 @@ void nccl_test(enum COLL coll_to_test, size_t nb_test, size_t start_size, int en
             }
         }
         ncclGroupEnd();
-        for(int i=0;i<N_GPUS;++i){
+        for (int i = 0; i < N_GPUS; ++i) {
             cudaStreamEndCapture(streams[i], &graphs[i]);
             cudaGraphInstantiate(&graphExecs[i], graphs[i], nullptr, nullptr, 0);
         }
-        //std::cout <<"graph initialised on "+simgrid::s4u::this_actor::get_name()+"\n";
-        // launching the kernels
+        // std::cout <<"graph initialised on "+simgrid::s4u::this_actor::get_name()+"\n";
+        //  launching the kernels
         auto start_time = simgrid::s4u::Engine::get_instance()->get_clock();
-        for(int i=0;i<N_GPUS;++i){
+        for (int i = 0; i < N_GPUS; ++i) {
             cudaGraphLaunch(graphExecs[i], streams[i]);
         }
-        //std::cout <<"graph launched on "+simgrid::s4u::this_actor::get_name()+"\n";
-        //streamsynchronisation
-        for(int i=0;i<N_GPUS;++i){
+        // std::cout <<"graph launched on "+simgrid::s4u::this_actor::get_name()+"\n";
+        // streamsynchronisation
+        for (int i = 0; i < N_GPUS; ++i) {
             cudaStreamSynchronise(streams[i]);
         }
-        //std::cout <<"synchronised "+simgrid::s4u::this_actor::get_name()+"\n";
+        // std::cout <<"synchronised "+simgrid::s4u::this_actor::get_name()+"\n";
         auto end_time = simgrid::s4u::Engine::get_instance()->get_clock();
-        times.push_back(end_time-start_time);
-        for(int i=0;i<N_GPUS;++i){
+        times.push_back(end_time - start_time);
+        for (int i = 0; i < N_GPUS; ++i) {
             cudaGraphDestroy(graphs[i]);
             cudaGraphExecDestroy(graphExecs[i]);
         }
     }
-    if(MPI) MPI_Reduce(times.data(), times.data(), times.size(), MPI_DOUBLE, MPI_MAX, 0, MPI_COMM_WORLD);
-    if(user_rank==0)
-        for(int i=0;i<nb_test;++i){
-            size_t iteration_size = nb_test<=1 ? end_size : start_size*(nb_test-1-i)/(nb_test-1) + end_size*(i)/(nb_test-1);
+    if (MPI)
+        MPI_Reduce(times.data(), times.data(), times.size(), MPI_DOUBLE, MPI_MAX, 0,
+                   MPI_COMM_WORLD);
+    if (user_rank == 0)
+        for (int i = 0; i < nb_test; ++i) {
+            size_t iteration_size = nb_test <= 1 ? end_size
+                                                 : start_size * (nb_test - 1 - i) / (nb_test - 1) +
+                                                       end_size * (i) / (nb_test - 1);
             double avgtime = times[i];
-            double alg_bw = getAlgoBandwidth(avgtime, iteration_size*sizeof(float));
-            PRINT(iteration_size, 4, avgtime*1e-6, alg_bw, getBusBandwidth(coll_to_test, alg_bw, N_RANKS));
-    }
-     // todo check the operation
+            double alg_bw = getAlgoBandwidth(avgtime, iteration_size * sizeof(float));
+            PRINT(iteration_size, 4, avgtime * 1e-6, alg_bw,
+                  getBusBandwidth(coll_to_test, alg_bw, N_RANKS));
+        }
+    // todo check the operation
     // free the buffer
     /*for(int i=0;i<N_GPUS;++i){
         cudaFree(&sendbufs[i]);
@@ -218,50 +236,59 @@ void nccl_test(enum COLL coll_to_test, size_t nb_test, size_t start_size, int en
     }*/
 }
 
-void nccl_test_mpi(enum COLL coll_to_test, int nb_test, int start_size, int end_size){
+void nccl_test_mpi(enum COLL coll_to_test, int nb_test, int start_size, int end_size) {
     MPI_Init();
     int user_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &user_rank);
-    if(user_rank<N_NODES) actor_wrapper( user_rank, nccl_test, coll_to_test, nb_test, start_size, end_size);
-    else{
+    if (user_rank < N_NODES)
+        actor_wrapper(user_rank, nccl_test, coll_to_test, nb_test, start_size, end_size);
+    else {
         MPI_Barrier(MPI_COMM_WORLD);
         std::vector<double> times(nb_test, 0);
-        MPI_Reduce(times.data(), times.data(), times.size(), MPI_DOUBLE, MPI_SUM, 0, MPI_COMM_WORLD);
+        MPI_Reduce(times.data(), times.data(), times.size(), MPI_DOUBLE, MPI_SUM, 0,
+                   MPI_COMM_WORLD);
     }
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
 }
 
-int main(int argc, char* argv[])
-{
+int main(int argc, char *argv[]) {
     simgrid::s4u::Engine engine("nccl");
     engine.set_config("smpi/simulate-computation:no");
-    //engine.set_config("help:0");
-    //engine.load_platform(argv[1]);
+    // engine.set_config("help:0");
+    // engine.load_platform(argv[1]);
     create_starzone_default(N_NODES, inter_node_bw, N_GPUS);
 
     std::cout << "platform loaded\n";
     // getting all cpus
-    auto cpus = engine.get_filtered_hosts([]
-    (simgrid::s4u::Host* host){
-        if(char_equal(host->get_property("type"),"cpu", 3)) return true;
-        else return false;});
+    auto cpus = engine.get_filtered_hosts([](simgrid::s4u::Host *host) {
+        if (char_equal(host->get_property("type"), "cpu", 3))
+            return true;
+        else
+            return false;
+    });
 
-    std::cout<< cpus.size()<<" cpu actors\n";
+    std::cout << cpus.size() << " cpu actors\n";
     std::cout << N_RANKS << " gpus \n";
 
-    if(not MPI){
-        for(int i=0;i<cpus.size();i++)
-        auto actor = simgrid::s4u::Actor::create("cpu"+std::to_string(i), cpus[i], [&](){actor_wrapper(i,nccl_test, coll, N_STEPS, start_size, end_size);});
-    }
-    else{
-        cpus.push_back(engine.host_by_name(host_no_deadlock));// smpi throws an exception when all process of an smpi instance are suspended
+    if (not MPI) {
+        for (int i = 0; i < cpus.size(); i++)
+            auto actor = simgrid::s4u::Actor::create("cpu" + std::to_string(i), cpus[i], [&]() {
+                actor_wrapper(i, nccl_test, coll, N_STEPS, start_size, end_size);
+            });
+    } else {
+        cpus.push_back(
+            engine.host_by_name(host_no_deadlock)); // smpi throws an exception when all process of
+                                                    // an smpi instance are suspended
         SMPI_init();
-        SMPI_app_instance_start("nccl_test", [](){mpi_wrapper(nccl_test, dummy_code_test,coll, N_STEPS, start_size, end_size);} , cpus); 
+        SMPI_app_instance_start(
+            "nccl_test",
+            []() { mpi_wrapper(nccl_test, dummy_code_test, coll, N_STEPS, start_size, end_size); },
+            cpus);
     }
 
     engine.run();
-    std::cout << "total time = "<< engine.get_clock() << " s\n";
-    if(MPI)SMPI_finalize();
+    std::cout << "total time = " << engine.get_clock() << " s\n";
+    if (MPI) SMPI_finalize();
     return 0;
 }
