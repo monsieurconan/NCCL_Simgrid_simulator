@@ -18,7 +18,12 @@ make
 ```
 
 ## How to use 
-Copy tests/main_test.cpp into your project, replace nccl_test function by your former main.
+Copy tests/main_test.cpp into your project, replace nccl_test function by your former main. 
+
+If your project uses MPI, there can be an fake deadlock issue : a simgrid mecanism throws an exception if all process enter a supending state
+which can happen if all process call cudaStreamSynchronise for example. The trick to resolve this is to add a another process that doesn't really 
+do anything but prevent the issue.
+
 You can either write your own platform file (see section Platform description rules) or use the default.
 Compile your project with a standart c++ compiler, using this library as a substitute of cudart and nccl.
 

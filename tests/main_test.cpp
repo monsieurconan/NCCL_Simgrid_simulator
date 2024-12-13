@@ -238,7 +238,7 @@ int main(int argc, char* argv[])
     engine.set_config("smpi/simulate-computation:no");
     //engine.set_config("help:0");
     //engine.load_platform(argv[1]);
-    create_starzone_default(N_NODES, inter_node_bw, N_GPUS);// N_NODES + 1 to avoid an issue with smpi where it thinks there is a deadlock when all cpus goes suspended
+    create_starzone_default(N_NODES, inter_node_bw, N_GPUS);
 
     std::cout << "platform loaded\n";
     // getting all cpus
@@ -255,8 +255,7 @@ int main(int argc, char* argv[])
         auto actor = simgrid::s4u::Actor::create("cpu"+std::to_string(i), cpus[i], [&](){actor_wrapper(i,nccl_test, coll, N_STEPS, start_size, end_size);});
     }
     else{
-        cpus.push_back(engine.host_by_name(host_no_deadlock));// smpi throws an exception when are
-        //auto a = simgrid::s4u::Actor::create("test", cpus[0], test_all_gpu);
+        cpus.push_back(engine.host_by_name(host_no_deadlock));// smpi throws an exception when all process of an smpi instance are suspended
         SMPI_init();
         SMPI_app_instance_start("nccl_test", [](){mpi_wrapper(nccl_test, dummy_code_test,coll, N_STEPS, start_size, end_size);} , cpus); 
     }
