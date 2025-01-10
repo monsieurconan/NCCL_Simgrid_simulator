@@ -1,1 +1,10 @@
 build
+doc/*.bbl  
+doc/*.glg  
+doc/*.gls  
+doc/*.log  
+doc/*.aux  
+doc/*.blg  
+doc/*.glo  
+doc/*.ist  
+doc/*.out 

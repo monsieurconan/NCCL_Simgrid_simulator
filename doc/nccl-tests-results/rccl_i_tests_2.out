@@ -1,0 +1,201 @@
+[200~================================================================================
+ Environment variables:
+ - UT_SHOW_NAMES        Show test case names                       (  1) <unset>
+ - UT_MIN_GPUS          Minimum number of GPUs to use              (  2) 2
+ - UT_MAX_GPUS          Maximum number of GPUs to use              (  0) <unset>
+ - UT_POW2_GPUS         Only allow power-of-2 # of GPUs            (  0) <unset>
+ - UT_PROCESS_MASK      Whether to run single/multi process        (  3) <unset>
+ - UT_VERBOSE           Show verbose unit test output              (  0) <unset>
+ - UT_REDOPS            List of reduction ops to test              ( -1) <unset>
+ - UT_DATATYPES         List of datatypes to test                  ( -1) <unset>
+ - UT_MAX_RANKS_PER_GPU Maximum number of ranks using the same GPU (  1) <unset>
+ - UT_PRINT_VALUES      Print array values (-1 for all)            (  0) <unset>
+ - UT_SHOW_TIMING       Show timing table                          (  1) <unset>
+ - UT_INTERACTIVE       Run in interactive mode                    (  0) <unset>
+ - UT_TIMEOUT_US        Timeout limit for collective calls in us   (5000000) <unset>
+ - UT_MULTITHREAD       Multi-thread single-process ranks          (  0) <unset>
+================================================================================
+[==========] Running 64 tests from 13 test suites.
+[----------] Global test environment set-up.
+[----------] 6 tests from AllGather
+[ RUN      ] AllGather.OutOfPlace
+[       OK ] AllGather.OutOfPlace (223 ms)
+[ RUN      ] AllGather.OutOfPlaceGraph
+[       OK ] AllGather.OutOfPlaceGraph (214 ms)
+[ RUN      ] AllGather.InPlace
+[       OK ] AllGather.InPlace (215 ms)
+[ RUN      ] AllGather.InPlaceGraph
+[       OK ] AllGather.InPlaceGraph (212 ms)
+[ RUN      ] AllGather.ManagedMem
+[       OK ] AllGather.ManagedMem (211 ms)
+[ RUN      ] AllGather.ManagedMemGraph
+[       OK ] AllGather.ManagedMemGraph (214 ms)
+[----------] 6 tests from AllGather (1292 ms total)
+
+[----------] 8 tests from AllReduce
+[ RUN      ] AllReduce.OutOfPlace
+[       OK ] AllReduce.OutOfPlace (208 ms)
+[ RUN      ] AllReduce.OutOfPlaceGraph
+[       OK ] AllReduce.OutOfPlaceGraph (236 ms)
+[ RUN      ] AllReduce.InPlace
+[       OK ] AllReduce.InPlace (210 ms)
+[ RUN      ] AllReduce.InPlaceGraph
+[       OK ] AllReduce.InPlaceGraph (206 ms)
+[ RUN      ] AllReduce.ManagedMem
+[       OK ] AllReduce.ManagedMem (212 ms)
+[ RUN      ] AllReduce.Channels
+[       OK ] AllReduce.Channels (208 ms)
+[ RUN      ] AllReduce.ManagedMemGraph
+[       OK ] AllReduce.ManagedMemGraph (207 ms)
+[ RUN      ] AllReduce.PreMultScalar
+[       OK ] AllReduce.PreMultScalar (208 ms)
+[----------] 8 tests from AllReduce (1700 ms total)
+
+[----------] 5 tests from AllToAll
+[ RUN      ] AllToAll.OutOfPlace
+[       OK ] AllToAll.OutOfPlace (211 ms)
+[ RUN      ] AllToAll.OutOfPlaceGraph
+[       OK ] AllToAll.OutOfPlaceGraph (205 ms)
+[ RUN      ] AllToAll.ManagedMem
+[       OK ] AllToAll.ManagedMem (213 ms)
+[ RUN      ] AllToAll.ManagedMemGraph
+[       OK ] AllToAll.ManagedMemGraph (214 ms)
+[ RUN      ] AllToAll.Channels
+[       OK ] AllToAll.Channels (205 ms)
+[----------] 5 tests from AllToAll (1049 ms total)
+
+[----------] 2 tests from AllToAllv
+[ RUN      ] AllToAllv.OutOfPlace
+[       OK ] AllToAllv.OutOfPlace (216 ms)
+[ RUN      ] AllToAllv.OutOfPlaceGraph
+[       OK ] AllToAllv.OutOfPlaceGraph (217 ms)
+[----------] 2 tests from AllToAllv (434 ms total)
+
+[----------] 6 tests from Broadcast
+[ RUN      ] Broadcast.OutOfPlace
+[       OK ] Broadcast.OutOfPlace (215 ms)
+[ RUN      ] Broadcast.OutOfPlaceGraph
+[       OK ] Broadcast.OutOfPlaceGraph (206 ms)
+[ RUN      ] Broadcast.InPlace
+[       OK ] Broadcast.InPlace (210 ms)
+[ RUN      ] Broadcast.InPlaceGraph
+[       OK ] Broadcast.InPlaceGraph (208 ms)
+[ RUN      ] Broadcast.ManagedMem
+[       OK ] Broadcast.ManagedMem (207 ms)
+[ RUN      ] Broadcast.ManagedMemGraph
+[       OK ] Broadcast.ManagedMemGraph (216 ms)
+[----------] 6 tests from Broadcast (1265 ms total)
+
+[----------] 6 tests from Gather
+[ RUN      ] Gather.OutOfPlace
+[       OK ] Gather.OutOfPlace (211 ms)
+[ RUN      ] Gather.OutOfPlaceGraph
+[       OK ] Gather.OutOfPlaceGraph (204 ms)
+[ RUN      ] Gather.InPlace
+[       OK ] Gather.InPlace (212 ms)
+[ RUN      ] Gather.InPlaceGraph
+[       OK ] Gather.InPlaceGraph (209 ms)
+[ RUN      ] Gather.ManagedMem
+[       OK ] Gather.ManagedMem (208 ms)
+[ RUN      ] Gather.ManagedMemGraph
+[       OK ] Gather.ManagedMemGraph (209 ms)
+[----------] 6 tests from Gather (1256 ms total)
+
+[----------] 5 tests from GroupCall
+[ RUN      ] GroupCall.Identical
+[       OK ] GroupCall.Identical (219 ms)
+[ RUN      ] GroupCall.Different
+[       OK ] GroupCall.Different (205 ms)
+[ RUN      ] GroupCall.MixedDataType
+[       OK ] GroupCall.MixedDataType (212 ms)
+[ RUN      ] GroupCall.Multistream
+[       OK ] GroupCall.Multistream (215 ms)
+[ RUN      ] GroupCall.MultiGroupCall
+[       OK ] GroupCall.MultiGroupCall (212 ms)
+[----------] 5 tests from GroupCall (1065 ms total)
+
+[----------] 1 test from NonBlocking
+[ RUN      ] NonBlocking.SingleCalls
+[       OK ] NonBlocking.SingleCalls (209 ms)
+[----------] 1 test from NonBlocking (209 ms total)
+
+[----------] 6 tests from ReduceScatter
+[ RUN      ] ReduceScatter.OutOfPlace
+[       OK ] ReduceScatter.OutOfPlace (205 ms)
+[ RUN      ] ReduceScatter.OutOfPlaceGraph
+[       OK ] ReduceScatter.OutOfPlaceGraph (213 ms)
+[ RUN      ] ReduceScatter.InPlace
+[       OK ] ReduceScatter.InPlace (208 ms)
+[ RUN      ] ReduceScatter.InPlaceGraph
+[       OK ] ReduceScatter.InPlaceGraph (210 ms)
+[ RUN      ] ReduceScatter.ManagedMem
+[       OK ] ReduceScatter.ManagedMem (206 ms)
+[ RUN      ] ReduceScatter.ManagedMemGraph
+[       OK ] ReduceScatter.ManagedMemGraph (204 ms)
+[----------] 6 tests from ReduceScatter (1248 ms total)
+
+[----------] 6 tests from Reduce
+[ RUN      ] Reduce.OutOfPlace
+[       OK ] Reduce.OutOfPlace (209 ms)
+[ RUN      ] Reduce.OutOfPlaceGraph
+[       OK ] Reduce.OutOfPlaceGraph (211 ms)
+[ RUN      ] Reduce.InPlace
+[       OK ] Reduce.InPlace (212 ms)
+[ RUN      ] Reduce.InPlaceGraph
+[       OK ] Reduce.InPlaceGraph (210 ms)
+[ RUN      ] Reduce.ManagedMem
+[       OK ] Reduce.ManagedMem (205 ms)
+[ RUN      ] Reduce.ManagedMemGraph
+[       OK ] Reduce.ManagedMemGraph (211 ms)
+[----------] 6 tests from Reduce (1262 ms total)
+
+[----------] 6 tests from Scatter
+[ RUN      ] Scatter.OutOfPlace
+[       OK ] Scatter.OutOfPlace (206 ms)
+[ RUN      ] Scatter.OutOfPlaceGraph
+[       OK ] Scatter.OutOfPlaceGraph (203 ms)
+[ RUN      ] Scatter.InPlace
+[       OK ] Scatter.InPlace (214 ms)
+[ RUN      ] Scatter.InPlaceGraph
+[       OK ] Scatter.InPlaceGraph (206 ms)
+[ RUN      ] Scatter.ManagedMem
+[       OK ] Scatter.ManagedMem (212 ms)
+[ RUN      ] Scatter.ManagedMemGraph
+[       OK ] Scatter.ManagedMemGraph (201 ms)
+[----------] 6 tests from Scatter (1245 ms total)
+
+[----------] 2 tests from SendRecv
+[ RUN      ] SendRecv.SinglePairs
+/home/cc/rccl/test/common/TestBed.cpp:131: Failure
+Expected equality of these values:
+  write(childList[0]->parentWriteFd, &getIdCmd, sizeof(getIdCmd))
+    Which is: -1
+  sizeof(getIdCmd)
+    Which is: 4
+/home/cc/rccl/test/common/TestBed.cpp:131: Failure
+Expected equality of these values:
+  write(childList[0]->parentWriteFd, &getIdCmd, sizeof(getIdCmd))
+    Which is: -1
+  sizeof(getIdCmd)
+    Which is: 4
+[  FAILED  ] SendRecv.SinglePairs (346 ms)
+[ RUN      ] SendRecv.UserBufferRegister
+/home/cc/rccl/test/common/TestBed.cpp:131: Failure
+Expected equality of these values:
+  write(childList[0]->parentWriteFd, &getIdCmd, sizeof(getIdCmd))
+    Which is: -1
+  sizeof(getIdCmd)
+    Which is: 4
+/home/cc/rccl/test/common/TestBed.cpp:131: Failure
+Expected equality of these values:
+  write(childList[0]->parentWriteFd, &getIdCmd, sizeof(getIdCmd))
+    Which is: -1
+  sizeof(getIdCmd)
+    Which is: 4
+[  FAILED  ] SendRecv.UserBufferRegister (348 ms)
+[----------] 2 tests from SendRecv (695 ms total)
+
+[----------] 5 tests from Standalone
+[ RUN      ] Standalone.SplitComms_RankCheck
+Encountered HIP error (no ROCm-capable device is detected) at line 22 in file /home/cc/rccl/test/StandaloneTests.cpp
+

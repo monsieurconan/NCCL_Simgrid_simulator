@@ -1,0 +1,63 @@
+........................................................................................
+          RocmBandwidthTest Version: 2.6.0
+
+          Launch Command is: rocm-bandwidth-test (rocm_bandwidth -a + rocm_bandwidth -A)
+
+
+          Device: 0,  AMD EPYC 7763 64-Core Processor
+          Device: 1,  AMD EPYC 7763 64-Core Processor
+          Device: 2,  AMD Instinct MI100,  GPU-4a6fa69c0466a0f6,  23:0.0
+          Device: 3,  AMD Instinct MI100,  GPU-7d83d710d99c6228,  83:0.0
+
+          Inter-Device Access
+
+          D/D       0         1         2         3         
+
+          0         1         1         1         1         
+
+          1         1         1         1         1         
+
+          2         1         1         1         1         
+
+          3         1         1         1         1         
+
+
+          Inter-Device Numa Distance
+
+          D/D       0         1         2         3         
+
+          0         0         32        20        52        
+
+          1         32        0         52        20        
+
+          2         20        52        0         72        
+
+          3         52        20        72        0         
+
+
+          Unidirectional copy peak bandwidth GB/s
+
+          D/D       0           1           2           3           
+
+          0         N/A         N/A         28.349      26.813      
+
+          1         N/A         N/A         24.861      28.351      
+
+          2         28.527      25.018      925.889     48.902      
+
+          3         11.283      28.531      49.920      887.683     
+
+
+          Bidirectional copy peak bandwidth GB/s
+
+          D/D       0           1           2           3           
+
+          0         N/A         N/A         51.807      26.001      
+
+          1         N/A         N/A         24.885      51.804      
+
+          2         51.807      24.885      N/A         97.678      
+
+          3         26.001      51.804      97.678      N/A         
+
+

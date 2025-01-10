@@ -1,0 +1,167 @@
+================================================================================
+ Environment variables:
+ - UT_SHOW_NAMES        Show test case names                       (  1) <unset>
+ - UT_MIN_GPUS          Minimum number of GPUs to use              (  2) 2
+ - UT_MAX_GPUS          Maximum number of GPUs to use              (  2) <unset>
+ - UT_POW2_GPUS         Only allow power-of-2 # of GPUs            (  0) <unset>
+ - UT_PROCESS_MASK      Whether to run single/multi process        (  3) <unset>
+ - UT_VERBOSE           Show verbose unit test output              (  0) <unset>
+ - UT_REDOPS            List of reduction ops to test              ( -1) <unset>
+ - UT_DATATYPES         List of datatypes to test                  ( -1) <unset>
+ - UT_MAX_RANKS_PER_GPU Maximum number of ranks using the same GPU (  1) <unset>
+ - UT_PRINT_VALUES      Print array values (-1 for all)            (  0) <unset>
+ - UT_SHOW_TIMING       Show timing table                          (  1) <unset>
+ - UT_INTERACTIVE       Run in interactive mode                    (  0) <unset>
+ - UT_TIMEOUT_US        Timeout limit for collective calls in us   (5000000) <unset>
+ - UT_MULTITHREAD       Multi-thread single-process ranks          (  0) <unset>
+================================================================================
+[==========] Running 64 tests from 13 test suites.
+[----------] Global test environment set-up.
+[----------] 6 tests from AllGather
+[ RUN      ] AllGather.OutOfPlace
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllGather.OutOfPlace (1529 ms)
+[ RUN      ] AllGather.OutOfPlaceGraph
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllGather.OutOfPlaceGraph (1496 ms)
+[ RUN      ] AllGather.InPlace
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllGather.InPlace (1500 ms)
+[ RUN      ] AllGather.InPlaceGraph
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllGather.InPlaceGraph (1504 ms)
+[ RUN      ] AllGather.ManagedMem
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllGather.ManagedMem (1500 ms)
+[ RUN      ] AllGather.ManagedMemGraph
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllGather.ManagedMemGraph (1527 ms)
+[----------] 6 tests from AllGather (9057 ms total)
+
+[----------] 8 tests from AllReduce
+[ RUN      ] AllReduce.OutOfPlace
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllReduce.OutOfPlace (1511 ms)
+[ RUN      ] AllReduce.OutOfPlaceGraph
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllReduce.OutOfPlaceGraph (1504 ms)
+[ RUN      ] AllReduce.InPlace
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllReduce.InPlace (1499 ms)
+[ RUN      ] AllReduce.InPlaceGraph
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllReduce.InPlaceGraph (1508 ms)
+[ RUN      ] AllReduce.ManagedMem
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllReduce.ManagedMem (1507 ms)
+[ RUN      ] AllReduce.Channels
+[       OK ] AllReduce.Channels (289 ms)
+[ RUN      ] AllReduce.ManagedMemGraph
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[0;31m[ ERROR    ] [0mChild process 0 fails NCCL call ncclGroupEnd with code 1
+[0;31m[ ERROR    ] [0mChild 0 failed on command [INIT_COMMS]:
+[  FAILED  ] AllReduce.ManagedMemGraph (1525 ms)
+[ RUN      ] AllReduce.PreMultScalar
+[0;31m[ ERROR    ] [0mChild 0 reports failure
+/home/cc/rccl/test/common/TestBed.cpp:183: Failure
+Expected equality of these values:
+  response
+    Which is: 1
+  TEST_SUCCESS
+    Which is: 0
+[ INFO     ] SP 2-ranks AllReduce (custom-scalar Mode 0 ncclFloat32)
+[0;31m[ ERROR    ] [0mChild 0 pipe closed unexpectedly
