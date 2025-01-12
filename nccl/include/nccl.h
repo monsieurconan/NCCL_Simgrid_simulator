@@ -24,7 +24,7 @@ typedef enum {
 
 typedef enum { ncclSum = 0, ncclProd = 1, ncclMax = 2, ncclMin = 3, ncclAvg = 4 } ncclRedOp_t;
 
-#define NCCL_UNIQUE_ID_BYTES 128
+#define NCCL_UNIQUE_ID_BYTES 4
 typedef int ncclUniqueId;
 
 enum ncclDataType_t {

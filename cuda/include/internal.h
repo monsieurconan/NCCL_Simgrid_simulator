@@ -16,7 +16,7 @@ struct Stream {
 
   public:
     Stream();
-    bool isEmpty();
+    void wait();
     void push(GpuActivity new_activity);
     void push(std::vector<GpuActivity> new_activities);
     std::vector<GpuActivity> pop();
@@ -26,12 +26,16 @@ struct internalStream {
     static simgrid::xbt::Extension<simgrid::s4u::Actor, internalStream> EXTENSION_ID;
     std::queue<std::vector<GpuActivity>> kernel_calls;
     s4u::Mailbox *stream_mb;
+    s4u::Mailbox *cpu_mb;
+    int kernel_count = 0;
 
   public:
-    internalStream(s4u::ActorPtr a);
+    internalStream(s4u::ActorPtr stream_actor, s4u::ActorPtr cuda_actor);
+    void wait();
     simgrid::s4u::CommPtr push(GpuActivity new_activity);
     simgrid::s4u::CommPtr push(std::vector<GpuActivity> new_activities);
     std::vector<GpuActivity> pop();
+    void complete();
 };
 
 struct Graph {

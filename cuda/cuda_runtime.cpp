@@ -18,16 +18,14 @@ cudaError_t cudaDeviceReset(void) {
 cudaError_t cudaDeviceSynchronize(void) {
     auto streams = simgrid::cuda::cuda_process()->getCurrentDevice()->get_all_actors();
     for (int i = 0; i < simgrid::cuda::cuda_process()->getCurrentDevice()->get_actor_count(); ++i) {
-        if (!streams[i]->is_suspended())
-            ;
-        simgrid::s4u::this_actor::suspend();
+        streams[i]->extension<simgrid::cuda::internalStream>()->wait();
     }
     return cudaError_t::cudaSuccess;
 }
 
 cudaError_t cudaStreamSynchronise(cudaStream_t stream) {
-    if (!stream->stream.isEmpty()) simgrid::s4u::this_actor::suspend();
-    simgrid::s4u::this_actor::sleep_for(1e-9); // deadlock otherwise
+    stream->stream.wait();
+    //simgrid::s4u::this_actor::sleep_for(1e-9); // deadlock otherwise
     return cudaSuccess;
 }
 

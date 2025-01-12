@@ -9,17 +9,17 @@
 #include "util.h"
 #include <iostream>
 
-size_t start_size = 1e8;
+size_t start_size = 1e6;
 size_t end_size = 1e8;
 
-double inter_node_bw = 1e11;
+double inter_node_bw = 1e1;
 
-COLL coll = ALL_REDUCE;
+COLL coll = COLL::SENDRECV;
 
-int N_STEPS = 1;
+int N_STEPS = 100;
 
 int N_GPUS = 2;
-int N_NODES = 20;
+int N_NODES = 1;
 
 bool MPI = N_NODES >= 2;
 
@@ -141,8 +141,8 @@ void nccl_test(enum COLL coll_to_test, size_t nb_test, size_t start_size, int en
         }
         size_t iteration_size = nb_test <= 1
                                     ? end_size
-                                    : start_size * (nb_test - 1 - iteration) / (nb_test - 1) +
-                                          end_size * (iteration) / (nb_test - 1);
+                                    : start_size/(nb_test-1) * (nb_test - 1 - iteration) +
+                                          end_size/(nb_test-1) * (iteration);
         ncclGroupStart();
         for (int i = 0; i < N_GPUS; ++i) {
             switch (coll_to_test) {
@@ -179,10 +179,10 @@ void nccl_test(enum COLL coll_to_test, size_t nb_test, size_t start_size, int en
                 break;
             case SENDRECV:
                 ncclSend(sendbufs[i], iteration_size, ncclFloat,
-                         user_rank == N_NODES - 1 ? i : (user_rank + 1) * N_GPUS + i, comms[i],
+                         user_rank*N_GPUS + i == N_RANKS - 1 ? 0 : user_rank*N_GPUS + i+1, comms[i],
                          streams[i]);
                 ncclRecv(recvbufs[i], iteration_size, ncclFloat,
-                         user_rank == 0 ? N_RANKS - N_NODES + i : (user_rank - 1) * N_GPUS + i,
+                         user_rank*N_GPUS + i == 0 ? N_RANKS - 1 :  user_rank*N_GPUS + i- 1,
                          comms[i], streams[i]);
                 break;
             case DEBUG:
@@ -220,9 +220,10 @@ void nccl_test(enum COLL coll_to_test, size_t nb_test, size_t start_size, int en
                    MPI_COMM_WORLD);
     if (user_rank == 0)
         for (int i = 0; i < nb_test; ++i) {
-            size_t iteration_size = nb_test <= 1 ? end_size
-                                                 : start_size * (nb_test - 1 - i) / (nb_test - 1) +
-                                                       end_size * (i) / (nb_test - 1);
+            size_t iteration_size = nb_test <= 1
+                                    ? end_size
+                                    : start_size/(nb_test-1) * (nb_test - 1 - i) +
+                                          end_size/(nb_test-1) * (i);
             double avgtime = times[i];
             double alg_bw = getAlgoBandwidth(avgtime, iteration_size * sizeof(float));
             PRINT(iteration_size, 4, avgtime * 1e-6, alg_bw,
@@ -240,21 +241,21 @@ void nccl_test_mpi(enum COLL coll_to_test, int nb_test, int start_size, int end_
     MPI_Init();
     int user_rank;
     MPI_Comm_rank(MPI_COMM_WORLD, &user_rank);
-    if (user_rank < N_NODES)
+    //if (user_rank < N_NODES)
         actor_wrapper(user_rank, nccl_test, coll_to_test, nb_test, start_size, end_size);
-    else {
+    /*else {
         MPI_Barrier(MPI_COMM_WORLD);
         std::vector<double> times(nb_test, 0);
         MPI_Reduce(times.data(), times.data(), times.size(), MPI_DOUBLE, MPI_SUM, 0,
                    MPI_COMM_WORLD);
-    }
+    }*/
     MPI_Barrier(MPI_COMM_WORLD);
     MPI_Finalize();
 }
 
 int main(int argc, char *argv[]) {
     simgrid::s4u::Engine engine("nccl");
-    engine.set_config("smpi/simulate-computation:no");
+    if(MPI) engine.set_config("smpi/simulate-computation:no");
     // engine.set_config("help:0");
     // engine.load_platform(argv[1]);
     create_starzone_default(N_NODES, inter_node_bw, N_GPUS);
@@ -272,14 +273,12 @@ int main(int argc, char *argv[]) {
     std::cout << N_RANKS << " gpus \n";
 
     if (not MPI) {
-        for (int i = 0; i < cpus.size(); i++)
-            auto actor = simgrid::s4u::Actor::create("cpu" + std::to_string(i), cpus[i], [&]() {
-                actor_wrapper(i, nccl_test, coll, N_STEPS, start_size, end_size);
+        //for (int j = 0; j < cpus.size(); ++j)
+        int j=0;
+            auto actor = simgrid::s4u::Actor::create("cpu" + std::to_string(j), cpus[j], [&]() {
+                actor_wrapper(j, nccl_test, coll, N_STEPS, start_size, end_size);
             });
     } else {
-        cpus.push_back(
-            engine.host_by_name(host_no_deadlock)); // smpi throws an exception when all process of
-                                                    // an smpi instance are suspended
         SMPI_init();
         SMPI_app_instance_start(
             "nccl_test",

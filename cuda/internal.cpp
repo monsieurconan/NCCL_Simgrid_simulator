@@ -79,27 +79,31 @@ void gpuActor() {
     auto father = s4u::Actor::by_pid(s4u::this_actor::get_ppid());
     simgrid::s4u::ActorPtr me = simgrid::s4u::Actor::self();
     while (true) {
-        if (me->extension<internalStream>()->stream_mb->empty()) {
-            if (father->is_suspended()) { // for stream synchronise
-                father->resume();
-            }
-            s4u::this_actor::suspend();
-        }
         auto activities = me->extension<internalStream>()->pop();
         if (activities.size() > 0) {
             for (int i = 0; i < activities.size(); ++i) {
                 activities[i].wait();
             }
         }
+        me->extension<internalStream>()->complete();
     }
 }
 
-internalStream::internalStream(s4u::ActorPtr a) {
+internalStream::internalStream(s4u::ActorPtr stream_actor, s4u::ActorPtr cuda_actor) {
     if (not simgrid::cuda::internalStream::EXTENSION_ID.valid())
         simgrid::cuda::internalStream::EXTENSION_ID =
             simgrid::s4u::Actor::extension_create<simgrid::cuda::internalStream>();
-    stream_mb = s4u::Mailbox::by_name(a->get_name());
-    stream_mb->set_receiver(a);
+    stream_mb = s4u::Mailbox::by_name(stream_actor->get_name());
+    stream_mb->set_receiver(stream_actor);
+    cpu_mb = s4u::Mailbox::by_name(stream_actor->get_name()+"c");
+    cpu_mb->set_receiver(cuda_actor);
+}
+
+void internalStream::wait() {
+    while(kernel_count>0){
+        cpu_mb->get_init()->wait();
+        kernel_count--;
+    }
 }
 
 simgrid::s4u::CommPtr internalStream::push(GpuActivity new_activity) {
@@ -107,10 +111,8 @@ simgrid::s4u::CommPtr internalStream::push(GpuActivity new_activity) {
 }
 
 simgrid::s4u::CommPtr internalStream::push(std::vector<GpuActivity> new_activities) {
-    // Kernel calls are put into a single communication
-    // communication for the kernel launch
     kernel_calls.push(std::vector<GpuActivity>(new_activities));
-    // stream is ready to compute
+    kernel_count++;
     return stream_mb->put_init(dummypayload, new_activities.size() * 64);
 }
 
@@ -119,6 +121,10 @@ std::vector<GpuActivity> internalStream::pop() {
     auto res = kernel_calls.front();
     kernel_calls.pop();
     return res;
+}
+
+void internalStream::complete() {
+    cpu_mb->put_init(dummypayload, 64)->detach();
 }
 
 void Graph::add_to_graph(GpuActivity activity) { captured_activities.push_back(activity); }
@@ -147,22 +153,20 @@ Stream::Stream() {
     gpu = cuda_process()->getCurrentDevice();
     streamActor =
         s4u::Actor::init(gpu->get_name() + ":" + std::to_string(gpu->get_actor_count()), gpu);
-    streamActor->extension_set<internalStream>(new internalStream(streamActor));
+    streamActor->extension_set<internalStream>(new internalStream(streamActor, s4u::Actor::self()));
     // streamActor->daemonize();//to make cleanup easy
     streamActor->start(gpuActor);
 }
 
-bool Stream::isEmpty() { return streamActor->is_suspended(); }
+void Stream::wait() { return streamActor->extension<internalStream>()->wait(); }
 
 void Stream::push(GpuActivity new_activity) {
     auto comm = streamActor->extension<internalStream>()->push(new_activity);
-    if (streamActor->is_suspended()) streamActor->resume();
     comm->detach();
 }
 
 void Stream::push(std::vector<GpuActivity> new_activities) {
     auto comm = streamActor->extension<internalStream>()->push(new_activities);
-    if (streamActor->is_suspended()) streamActor->resume();
     comm->wait();
 }
 
