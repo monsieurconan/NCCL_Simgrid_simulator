@@ -18,6 +18,7 @@ struct GpuActivity {
     GpuActivity(s4u::Mailbox *mailbox, double bytes, TYPE send_or_recv);
     GpuActivity(double bytes, TYPE read_or_write);
     void wait();
+    std::string print();
 };
 } // namespace cuda
 } // namespace simgrid

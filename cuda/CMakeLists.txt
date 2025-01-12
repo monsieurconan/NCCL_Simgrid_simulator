@@ -4,7 +4,7 @@ find_package(SimGrid REQUIRED)
 include_directories(${SimGrid_INCLUDE_DIR})
 
 add_library(cudart SHARED cuda_runtime.cpp cuda_graph.cpp internal.cpp
- gpu_activity.cpp platform.cpp)
+ gpu_activity.cpp platform.cpp tracer.cpp)
 
 target_include_directories(cudart PUBLIC include)
 
