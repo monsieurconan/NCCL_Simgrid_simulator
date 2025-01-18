@@ -9,13 +9,19 @@ simgrid::xbt::Extension<simgrid::s4u::Host, ncclRank> ncclRank::EXTENSION_ID =
 simgrid::xbt::Extension<simgrid::s4u::Actor, ncclActor> ncclActor::EXTENSION_ID =
     simgrid::s4u::Actor::extension_create<ncclActor>();
 
-ncclRank::ncclRank(int _rank) {
+ncclRank::ncclRank() {
     if (not ncclRank::EXTENSION_ID.valid())
         ncclRank::EXTENSION_ID = simgrid::s4u::Host::extension_create<ncclRank>();
-    rank = _rank;
 }
 
-ncclComm::ncclComm(int nranks) {
+void ncclRank::setRank(int _rank, int comm_id) {
+    if(comm_id>=rank.size())
+        rank.resize(comm_id+1, 0); 
+    rank[comm_id] = _rank;
+}
+
+ncclComm::ncclComm(int _unique_id,int nranks) {
+    unique_id = _unique_id;
     ranks = nranks;
     pendingComm = std::vector<std::list<ncclMessage>>(ranks);
     ranks_to_gpus = std::vector<simgrid::s4u::Host *>(nranks);
@@ -28,7 +34,7 @@ void ncclComm::add_rank(int rank, simgrid::s4u::Host *gpu) {
     // assert(rank<nranks);
     ranks_to_gpus[rank] = gpu;
     // std::cout << gpu->get_name() << " is rank " << rank << "\n";
-    gpu->extension_set<ncclRank>(new ncclRank(rank));
+    gpu->extension<ncclRank>()->setRank(rank, unique_id);
     ranks_to_mailboxes[rank] = simgrid::s4u::Mailbox::by_name("m" + gpu->get_name());
     return;
 }
@@ -39,12 +45,12 @@ void ncclComm::add_devices(const int *devlist, std::vector<simgrid::s4u::Host *>
     }
 }
 
-int ncclComm::rank(cudaStream_t stream) { return stream->stream.gpu->extension<ncclRank>()->rank; }
+int ncclComm::rank(cudaStream_t stream) { return stream->stream.gpu->extension<ncclRank>()->rank[unique_id]; }
 
 int ncclComm::next_i_rank(cudaStream_t stream, int i) {
     auto gpu_name = stream->stream.gpu->get_name();
     auto rank = stream->stream.gpu->extension<ncclRank>();
-    return (rank->rank + i) % ranks;
+    return (rank->rank[unique_id] + i) % ranks;
 }
 
 namespace {

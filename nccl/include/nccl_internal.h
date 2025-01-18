@@ -18,13 +18,15 @@ struct ncclMessage {
 
 struct ncclRank {
     static simgrid::xbt::Extension<simgrid::s4u::Host, ncclRank> EXTENSION_ID;
-    int rank;
+    std::vector<int> rank;
 
   public:
-    ncclRank(int rank);
+    ncclRank();
+    void setRank(int rank, int ncclCommId);
 };
 
 struct ncclComm {
+    int unique_id;
     int ranks;
     std::map<void *, void *> zero_copy_buffers;
     // mapping to stream
@@ -32,7 +34,7 @@ struct ncclComm {
     std::vector<simgrid::s4u::Mailbox *> ranks_to_mailboxes;
     std::vector<std::list<ncclMessage>> pendingComm;
 
-    ncclComm(int nranks);
+    ncclComm(int unique_id,int nranks);
     int nranks();
     void add_rank(int rank, simgrid::s4u::Host *gpu);
     void add_devices(const int *devlist, std::vector<simgrid::s4u::Host *> gpus, int n);

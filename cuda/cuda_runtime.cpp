@@ -25,7 +25,6 @@ cudaError_t cudaDeviceSynchronize(void) {
 
 cudaError_t cudaStreamSynchronise(cudaStream_t stream) {
     stream->stream.wait();
-    //simgrid::s4u::this_actor::sleep_for(1e-9); // deadlock otherwise
     return cudaSuccess;
 }
 
@@ -59,56 +58,53 @@ mem cpy*/
 
 cudaError_t cudaMemcpy(void *dst, const void *src, size_t count, enum cudaMemcpyKind kind) {
     memcpy(dst, src, count); // shallow copy ?
-    simgrid::cuda::HostType sender, recver;
+    simgrid::cuda::COPYTYPE type;
+    cudaDeviceSynchronize();
     switch (kind) {
     case cudaMemcpyHostToDevice:
-        sender = simgrid::cuda::HostType::HOST;
-        recver = simgrid::cuda::HostType::DEVICE;
+        type = simgrid::cuda::HostToDevice;
         break;
     case cudaMemcpyHostToHost:
-        sender = simgrid::cuda::HostType::HOST;
-        recver = simgrid::cuda::HostType::HOST;
+        type = simgrid::cuda::HostToHost;
         break;
     case cudaMemcpyDeviceToHost:
-        sender = simgrid::cuda::HostType::DEVICE;
-        recver = simgrid::cuda::HostType::HOST;
+        type = simgrid::cuda::DeviceToHost;
         break;
     case cudaMemcpyDeviceToDevice:
-        sender = simgrid::cuda::HostType::DEVICE;
-        recver = simgrid::cuda::HostType::DEVICE;
+        type = simgrid::cuda::DeviceToDevice;
         break;
     default:
         break;
     }
-    simgrid::cuda::cuda_process()->send(sender, recver, count);
+    auto stream_actor = simgrid::cuda::cuda_process()->getCurrentDevice()->get_all_actors()[0];
+    auto comm = simgrid::cuda::cuda_process()->send(type, stream_actor, count);
+    stream_actor->extension<simgrid::cuda::internalStream>()->wait();
+    comm->wait();
     return cudaError_t::cudaSuccess;
 }
 
 cudaError_t cudaMemcpyAsync(void *dst, const void *src, size_t count, enum cudaMemcpyKind kind,
                             cudaStream_t stream) {
     memcpy(dst, src, count); // shallow copy ?
-    simgrid::cuda::HostType sender, recver;
+    simgrid::cuda::COPYTYPE type;
+    cudaDeviceSynchronize();
     switch (kind) {
     case cudaMemcpyHostToDevice:
-        sender = simgrid::cuda::HostType::HOST;
-        recver = simgrid::cuda::HostType::DEVICE;
+        type = simgrid::cuda::HostToDevice;
         break;
     case cudaMemcpyHostToHost:
-        sender = simgrid::cuda::HostType::HOST;
-        recver = simgrid::cuda::HostType::HOST;
+        type = simgrid::cuda::HostToHost;
         break;
     case cudaMemcpyDeviceToHost:
-        sender = simgrid::cuda::HostType::DEVICE;
-        recver = simgrid::cuda::HostType::HOST;
+        type = simgrid::cuda::DeviceToHost;
         break;
     case cudaMemcpyDeviceToDevice:
-        sender = simgrid::cuda::HostType::DEVICE;
-        recver = simgrid::cuda::HostType::DEVICE;
+        type = simgrid::cuda::DeviceToDevice;
         break;
     default:
         break;
     }
-    simgrid::cuda::cuda_process()->send_async(sender, recver, count, stream->stream);
+    simgrid::cuda::cuda_process()->send(type, stream->stream.streamActor, count)->wait();
     return cudaError_t::cudaSuccess;
 }
 
@@ -150,21 +146,3 @@ void cudaStream::launch(std::vector<simgrid::cuda::GpuActivity> new_activities) 
         graph.add_to_graph(new_activities);
     }
 }
-
-/*void cudaStream_t::launch(simgrid::cuda::GpuActivity new_activity) {
-    if(mode=cudaStreamCaptureModeRelaxed){
-        stream.push(new_activity);
-    }
-    else{
-        graph.add_to_graph(new_activity);
-    }
-}
-
-void cudaStream_t::launch(std::vector<simgrid::cuda::GpuActivity> new_activities) {
-    if(mode=cudaStreamCaptureModeRelaxed){
-        stream.push(new_activities);
-    }
-    else{
-        graph.add_to_graph(new_activities);
-    }
-}*/

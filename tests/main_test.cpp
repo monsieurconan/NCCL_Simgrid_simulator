@@ -268,7 +268,17 @@ int main(int argc, char *argv[]) {
         else
             return false;
     });
-
+    auto gpus = engine.get_filtered_hosts([](simgrid::s4u::Host *host) {
+        if (char_equal(host->get_property("type"), "gpu", 3))
+            return true;
+        else
+            return false;
+    });
+    for(int i=0;i<gpus.size();++i){
+        // todo :  start the null stream ?
+        gpus[i]->extension_set<ncclRank>(new ncclRank());
+        
+    }
     std::cout << cpus.size() << " cpu actors\n";
     std::cout << N_RANKS << " gpus \n";
 

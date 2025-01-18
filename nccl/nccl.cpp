@@ -7,7 +7,7 @@ static std::vector<ncclComm_t> communicators = std::vector<ncclComm_t>();
 
 static ncclComm_t get_or_create_communicator(ncclUniqueId id, int nranks) {
     if (id >= communicators.size()) {
-        communicators.push_back(new ncclComm(nranks));
+        communicators.push_back(new ncclComm(id,nranks));
     }
     return communicators[id];
 }
@@ -47,7 +47,7 @@ ncclResult_t ncclCommDeregister(const ncclComm_t comm, void *handle) {
 }
 
 ncclResult_t ncclCommInitAll(ncclComm_t *comm, int ndev, const int *devlist) {
-    **comm = ncclComm(ndev);
+    **comm = ncclComm(newUniqueId(),ndev);
     (*comm)->add_devices(devlist, simgrid::cuda::cuda_process()->getAllDevice(), ndev);
     communicators.push_back(*comm);
     return ncclSuccess;
@@ -108,23 +108,23 @@ char const *ncclGetLastError(ncclComm_t comm) {
 char *ncclGetErrorString(ncclResult_t res) {
     switch (res) {
     case ncclSuccess:
-        return "success";
+        return std::string("success").data();
     case ncclUnhandledCudaError:
-        return "cuda error";
+        return std::string("cuda error").data();
     case ncclSystemError:
-        return "system error";
+        return std::string("system error").data();
     case ncclInternalError:
-        return "internal error";
+        return std::string("internal error").data();
     case ncclInvalidArgument:
-        return "invalid argument";
+        return std::string("invalid argument").data();
     case ncclInvalidUsage:
-        return "invalid usage";
+        return std::string("invalid usage").data();
     case ncclRemoteError:
-        return "remote error";
+        return std::string("remote error").data();
     case ncclInProgress:
-        return "in progress";
+        return std::string("in progress").data();
     default:
-        return "error";
+        return std::string("error").data();
     }
 }
 

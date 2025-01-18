@@ -7,15 +7,7 @@
 namespace simgrid {
 namespace cuda {
 static void *dummypayload = malloc(2048);
-namespace {
-s4u::Host *getHost(cudaActor *a, HostType type) {
-    if (type == HostType::HOST) {
-        return a->actor_->get_host();
-    } else {
-        return a->getCurrentDevice();
-    }
-}
-} // namespace
+
 
 simgrid::xbt::Extension<simgrid::s4u::Actor, cudaActor> cudaActor::EXTENSION_ID =
     simgrid::s4u::Actor::extension_create<simgrid::cuda::cudaActor>();
@@ -57,13 +49,24 @@ cudaActor::cudaActor(s4u::Actor *cpu) {
     devices = filter_gpus(cpu->get_host()->get_englobing_zone()->get_all_hosts());
 }
 
-void cudaActor::send(HostType src, HostType dst, size_t count) {
-    s4u::Comm::sendto(getHost(this, src), getHost(this, dst), count);
+s4u::ActivityPtr cudaActor::send(COPYTYPE type, simgrid::s4u::ActorPtr stream_actor, size_t count) {
+    auto mb = type==HostToDevice ? stream_actor->extension<internalStream>()->stream_mb : stream_actor->extension<internalStream>()->cpu_mb;
+    switch (type) {
+    case HostToDevice:
+        stream_actor->extension<internalStream>()->push({GpuActivity(mb,count, GpuActivity::RECV), GpuActivity(count, GpuActivity::WRITE)});
+        return mb->put_init(dummypayload, count)->start();
+    case HostToHost:
+        return s4u::Comm::sendto_async(s4u::this_actor::get_host(), s4u::this_actor::get_host(),count);
+    case DeviceToHost:
+        stream_actor->extension<internalStream>()->push({GpuActivity(count, GpuActivity::READ),GpuActivity(mb,count, GpuActivity::SEND)});
+        return mb->get_init()->start();
+    case DeviceToDevice:
+        stream_actor->extension<internalStream>()->push({GpuActivity(count, GpuActivity::READ), GpuActivity(count, GpuActivity::WRITE)});
+        return s4u::this_actor::exec_async(1);
+    }
+    
 }
 
-void cudaActor::send_async(HostType src, HostType dst, size_t count, Stream stream) {
-    s4u::Comm::sendto_async(getHost(this, src), getHost(this, dst), count);
-}
 
 void cudaActor::write(size_t count) {
     // todo add disk or use loop back

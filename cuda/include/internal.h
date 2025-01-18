@@ -7,7 +7,10 @@
 
 namespace simgrid {
 namespace cuda {
-enum HostType { HOST, DEVICE };
+enum COPYTYPE { HostToDevice,
+    HostToHost,
+    DeviceToHost,
+    DeviceToDevice };
 
 struct Stream {
 
@@ -72,8 +75,7 @@ class cudaActor {
     void setDevice(int);
     s4u::Host *getCurrentDevice();
     std::vector<s4u::Host *> getAllDevice();
-    void send(HostType src, HostType dst, size_t count);
-    void send_async(HostType src, HostType dst, size_t count, Stream stream);
+    s4u::ActivityPtr send(COPYTYPE type, simgrid::s4u::ActorPtr stream_actor, size_t count);
     void write(size_t count);
 };
 
