@@ -6,8 +6,8 @@ static int dummy_int = 1;
 static void *dummybuf = &dummy_int;
 cuda::GpuActivity::GpuActivity(double flops) : type{EXEC}, load{flops}, mb{nullptr} {}
 
-cuda::GpuActivity::GpuActivity(s4u::Mailbox *mailbox, double bytes, TYPE send_or_recv)
-    : type{send_or_recv}, load{bytes}, mb{mailbox} {
+cuda::GpuActivity::GpuActivity(s4u::Mailbox *mailbox, double bytes, TYPE send_or_recv, void *buf)
+    : type{send_or_recv}, load{bytes}, mb{mailbox}, payload{buf == nullptr ? dummybuf : buf} {
     // assert(read_or_write==SEND || read_or_write==RECV);
 }
 
@@ -16,45 +16,56 @@ cuda::GpuActivity::GpuActivity(double bytes, TYPE read_or_write)
     // assert(read_or_write==READ || read_or_write==WRITE);
 }
 
-namespace{
-    std::string print_type(cuda::GpuActivity::TYPE type){
-        switch (type) {
-        case cuda::GpuActivity::EXEC:
-            return "execution";
-        case cuda::GpuActivity::SEND_ASYNC: {
-            return "async-send";
-        }
-        case cuda::GpuActivity::SEND: {
-            return "send";
-        }
-        case cuda::GpuActivity::RECV: {
-           return "recv";
-        }
-        case cuda::GpuActivity::READ: {
-            return "read";
-        }
-        case cuda::GpuActivity::WRITE: {
-            return "write";
-        }
-        default:
-            return "default";
-        }
-    }
+cuda::GpuActivity cuda::GpuActivity::exec(double flops) { return GpuActivity(flops); }
+
+cuda::GpuActivity cuda::GpuActivity::comm(s4u::Mailbox *mailbox, double bytes, TYPE send_or_recv,
+                                          void *buf) {
+    return GpuActivity(mailbox, bytes, send_or_recv, buf);
 }
 
+cuda::GpuActivity cuda::GpuActivity::io(double bytes, TYPE read_or_write) {
+    return GpuActivity(bytes, read_or_write);
+}
+
+namespace {
+std::string print_type(cuda::GpuActivity::TYPE type) {
+    switch (type) {
+    case cuda::GpuActivity::EXEC:
+        return "execution";
+    case cuda::GpuActivity::SEND_ASYNC: {
+        return "async-send";
+    }
+    case cuda::GpuActivity::SEND: {
+        return "send";
+    }
+    case cuda::GpuActivity::RECV: {
+        return "recv";
+    }
+    case cuda::GpuActivity::READ: {
+        return "read";
+    }
+    case cuda::GpuActivity::WRITE: {
+        return "write";
+    }
+    default:
+        return "default";
+    }
+}
+} // namespace
+
 void simgrid::cuda::GpuActivity::wait() {
-    if(trace::tracingOn){
+    if (trace::tracingOn) {
         auto beginning = s4u::Engine::get_clock();
         switch (type) {
         case EXEC:
             s4u::this_actor::execute(load);
             break;
         case SEND_ASYNC: {
-            mb->put_init(dummybuf, load)->detach();
+            mb->put_init(payload, load)->detach();
             break;
         }
         case SEND: {
-            mb->put(dummybuf, load);
+            mb->put(payload, load);
             break;
         }
         case RECV: {
@@ -74,14 +85,11 @@ void simgrid::cuda::GpuActivity::wait() {
         default:
             break;
         }
-        trace::tracer.print(print_type(type) + ", " +
-            std::to_string(beginning) + ", " +
-            std::to_string(s4u::Engine::get_clock()) + ", " + 
-            s4u::this_actor::get_host()->get_name()+", " +
-            std::to_string(load) + ", " +
-            mb->get_name() + "\n" );
-    }
-    else{
+        trace::tracer.print(print_type(type) + ", " + std::to_string(beginning) + ", " +
+                            std::to_string(s4u::Engine::get_clock()) + ", " +
+                            s4u::this_actor::get_host()->get_name() + ", " + std::to_string(load) +
+                            ", " + mb->get_name() + "\n");
+    } else {
         switch (type) {
         case EXEC:
             s4u::this_actor::execute(load);
@@ -113,6 +121,5 @@ void simgrid::cuda::GpuActivity::wait() {
         }
     }
 }
-
 
 } // namespace simgrid

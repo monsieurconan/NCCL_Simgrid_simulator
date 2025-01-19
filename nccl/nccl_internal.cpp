@@ -15,15 +15,13 @@ ncclRank::ncclRank() {
 }
 
 void ncclRank::setRank(int _rank, int comm_id) {
-    if(comm_id>=rank.size())
-        rank.resize(comm_id+1, 0); 
+    if (comm_id >= rank.size()) rank.resize(comm_id + 1, 0);
     rank[comm_id] = _rank;
 }
 
-ncclComm::ncclComm(int _unique_id,int nranks) {
+ncclComm::ncclComm(int _unique_id, int nranks) {
     unique_id = _unique_id;
     ranks = nranks;
-    pendingComm = std::vector<std::list<ncclMessage>>(ranks);
     ranks_to_gpus = std::vector<simgrid::s4u::Host *>(nranks);
     ranks_to_mailboxes = std::vector<simgrid::s4u::Mailbox *>(nranks, nullptr);
 }
@@ -45,7 +43,9 @@ void ncclComm::add_devices(const int *devlist, std::vector<simgrid::s4u::Host *>
     }
 }
 
-int ncclComm::rank(cudaStream_t stream) { return stream->stream.gpu->extension<ncclRank>()->rank[unique_id]; }
+int ncclComm::rank(cudaStream_t stream) {
+    return stream->stream.gpu->extension<ncclRank>()->rank[unique_id];
+}
 
 int ncclComm::next_i_rank(cudaStream_t stream, int i) {
     auto gpu_name = stream->stream.gpu->get_name();
@@ -75,42 +75,6 @@ int ncclTypeSize(ncclDataType_t type) {
     }
 }
 } // namespace
-
-void ncclComm::recv(int dst, int src, void *rbuf, size_t count, ncclDataType_t datatype) {
-    auto lm = pendingComm[dst];
-    if (!lm.empty()) {
-        ncclMessage current;
-        auto e = lm.begin();
-        e++;
-        while (e != lm.end()) {
-            current = *e;
-            if (current.src == src && current.count == count && current.datatype == datatype) {
-                std::memcpy(rbuf, current.sbuf, count * ncclTypeSize(datatype));
-                lm.erase(e);
-                break;
-            }
-        }
-    }
-    lm.push_back({nullptr, rbuf, src, count, datatype});
-}
-
-void ncclComm::send(int dst, int src, const void *sbuf, size_t count, ncclDataType_t datatype) {
-    auto lm = pendingComm[dst];
-    if (!lm.empty()) {
-        ncclMessage current;
-        auto e = lm.begin();
-        e++;
-        while (e != lm.end()) {
-            current = *e;
-            if (current.src == src && current.count == count && current.datatype == datatype) {
-                std::memcpy(current.rbuf, sbuf, count * ncclTypeSize(datatype));
-                lm.erase(e);
-                break;
-            }
-        }
-    }
-    lm.push_back({sbuf, nullptr, src, count, datatype});
-}
 
 ncclActor::ncclActor(int user_rank) {
     if (not ncclActor::EXTENSION_ID.valid())

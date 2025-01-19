@@ -7,10 +7,7 @@
 
 namespace simgrid {
 namespace cuda {
-enum COPYTYPE { HostToDevice,
-    HostToHost,
-    DeviceToHost,
-    DeviceToDevice };
+enum COPYTYPE { HostToDevice, HostToHost, DeviceToHost, DeviceToDevice };
 
 struct Stream {
 

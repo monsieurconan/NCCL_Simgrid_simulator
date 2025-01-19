@@ -28,7 +28,7 @@ void plus(void *leftbuf, void *rightbuf, size_t n, ncclDataType_t datatype) {
 
 void reduction(ncclRedOp_t op, void *recvbuf, void *tmpbuf, size_t n, ncclDataType_t datatype,
                cudaStream_t stream) {
-    auto execution = simgrid::cuda::GpuActivity(n); // todo : better model
+    auto execution = simgrid::cuda::GpuActivity::exec(n); // todo : better model
     stream->launch(execution);
     /*switch (op)
     {
@@ -254,7 +254,7 @@ ncclResult_t ncclAllToAll(const void *sendbuff, void *recvbuff, size_t sendcount
 }
 
 ncclResult_t debugTest(cudaStream_t stream) {
-    auto execution = simgrid::cuda::GpuActivity(1e8); // todo : better model
+    auto execution = simgrid::cuda::GpuActivity::exec(1e8); // todo : better model
     stream->launch(execution);
     return ncclSuccess;
 }

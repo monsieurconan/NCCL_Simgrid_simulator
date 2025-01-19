@@ -8,7 +8,6 @@ namespace simgrid {
 namespace cuda {
 static void *dummypayload = malloc(2048);
 
-
 simgrid::xbt::Extension<simgrid::s4u::Actor, cudaActor> cudaActor::EXTENSION_ID =
     simgrid::s4u::Actor::extension_create<simgrid::cuda::cudaActor>();
 simgrid::xbt::Extension<simgrid::s4u::Actor, internalStream> internalStream::EXTENSION_ID =
@@ -50,23 +49,29 @@ cudaActor::cudaActor(s4u::Actor *cpu) {
 }
 
 s4u::ActivityPtr cudaActor::send(COPYTYPE type, simgrid::s4u::ActorPtr stream_actor, size_t count) {
-    auto mb = type==HostToDevice ? stream_actor->extension<internalStream>()->stream_mb : stream_actor->extension<internalStream>()->cpu_mb;
+    auto mb = type == HostToDevice ? stream_actor->extension<internalStream>()->stream_mb
+                                   : stream_actor->extension<internalStream>()->cpu_mb;
     switch (type) {
     case HostToDevice:
-        stream_actor->extension<internalStream>()->push({GpuActivity(mb,count, GpuActivity::RECV), GpuActivity(count, GpuActivity::WRITE)});
+        stream_actor->extension<internalStream>()->push(
+            {GpuActivity::comm(mb, count, GpuActivity::RECV),
+             GpuActivity::io(count, GpuActivity::WRITE)});
         return mb->put_init(dummypayload, count)->start();
     case HostToHost:
-        return s4u::Comm::sendto_async(s4u::this_actor::get_host(), s4u::this_actor::get_host(),count);
+        return s4u::Comm::sendto_async(s4u::this_actor::get_host(), s4u::this_actor::get_host(),
+                                       count);
     case DeviceToHost:
-        stream_actor->extension<internalStream>()->push({GpuActivity(count, GpuActivity::READ),GpuActivity(mb,count, GpuActivity::SEND)});
+        stream_actor->extension<internalStream>()->push(
+            {GpuActivity::io(count, GpuActivity::READ),
+             GpuActivity::comm(mb, count, GpuActivity::SEND)});
         return mb->get_init()->start();
     case DeviceToDevice:
-        stream_actor->extension<internalStream>()->push({GpuActivity(count, GpuActivity::READ), GpuActivity(count, GpuActivity::WRITE)});
-        return s4u::this_actor::exec_async(1);
+        stream_actor->extension<internalStream>()->push(
+            {GpuActivity::io(count, GpuActivity::READ),
+             GpuActivity::io(count, GpuActivity::WRITE)});
     }
-    
+    return s4u::this_actor::exec_async(1);
 }
-
 
 void cudaActor::write(size_t count) {
     // todo add disk or use loop back
@@ -98,12 +103,12 @@ internalStream::internalStream(s4u::ActorPtr stream_actor, s4u::ActorPtr cuda_ac
             simgrid::s4u::Actor::extension_create<simgrid::cuda::internalStream>();
     stream_mb = s4u::Mailbox::by_name(stream_actor->get_name());
     stream_mb->set_receiver(stream_actor);
-    cpu_mb = s4u::Mailbox::by_name(stream_actor->get_name()+"c");
+    cpu_mb = s4u::Mailbox::by_name(stream_actor->get_name() + "c");
     cpu_mb->set_receiver(cuda_actor);
 }
 
 void internalStream::wait() {
-    while(kernel_count>0){
+    while (kernel_count > 0) {
         cpu_mb->get_init()->wait();
         kernel_count--;
     }
@@ -126,9 +131,7 @@ std::vector<GpuActivity> internalStream::pop() {
     return res;
 }
 
-void internalStream::complete() {
-    cpu_mb->put_init(dummypayload, 64)->detach();
-}
+void internalStream::complete() { cpu_mb->put_init(dummypayload, 64)->detach(); }
 
 void Graph::add_to_graph(GpuActivity activity) { captured_activities.push_back(activity); }
 

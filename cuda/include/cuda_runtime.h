@@ -3,7 +3,6 @@
 
 #include "cuda_error.h"
 #include "cuda_runtime.h"
-#include "gpu_activity.h"
 #include "internal.h"
 #include <stddef.h>
 

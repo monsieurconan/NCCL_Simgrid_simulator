@@ -7,7 +7,7 @@ static std::vector<ncclComm_t> communicators = std::vector<ncclComm_t>();
 
 static ncclComm_t get_or_create_communicator(ncclUniqueId id, int nranks) {
     if (id >= communicators.size()) {
-        communicators.push_back(new ncclComm(id,nranks));
+        communicators.push_back(new ncclComm(id, nranks));
     }
     return communicators[id];
 }
@@ -47,7 +47,7 @@ ncclResult_t ncclCommDeregister(const ncclComm_t comm, void *handle) {
 }
 
 ncclResult_t ncclCommInitAll(ncclComm_t *comm, int ndev, const int *devlist) {
-    **comm = ncclComm(newUniqueId(),ndev);
+    **comm = ncclComm(newUniqueId(), ndev);
     (*comm)->add_devices(devlist, simgrid::cuda::cuda_process()->getAllDevice(), ndev);
     communicators.push_back(*comm);
     return ncclSuccess;
@@ -76,22 +76,18 @@ ncclResult_t ncclSend(const void *sendbuff, size_t count, ncclDataType_t datatyp
     // communication part
     auto send_type = simgrid::cuda::GpuActivity::SEND_ASYNC;
     if (nccl_actor()->group_level == 0) send_type = simgrid::cuda::GpuActivity::SEND;
-    auto message = simgrid::cuda::GpuActivity(comm->ranks_to_mailboxes[peer],
-                                              count * sizeof(datatype), send_type);
+    auto message = simgrid::cuda::GpuActivity::comm(
+        comm->ranks_to_mailboxes[peer], count * sizeof(datatype), send_type, (void *)sendbuff);
     stream->launch(message);
-    // comm->send(comm->rank(stream), peer, sendbuff, count, datatype);
-    //  waiting for the message in case of no grouping call (hard)
     return ncclSuccess;
 }
 
 ncclResult_t ncclRecv(void *recvbuff, size_t count, ncclDataType_t datatype, int peer,
                       ncclComm_t comm, cudaStream_t stream) {
-    auto message =
-        simgrid::cuda::GpuActivity(comm->ranks_to_mailboxes[comm->rank(stream)],
-                                   count * sizeof(datatype), simgrid::cuda::GpuActivity::RECV);
+    auto message = simgrid::cuda::GpuActivity::comm(comm->ranks_to_mailboxes[comm->rank(stream)],
+                                                    count * sizeof(datatype),
+                                                    simgrid::cuda::GpuActivity::RECV, recvbuff);
     stream->launch(message);
-    // comm->recv(peer, comm->rank(stream), recvbuff, count, datatype);
-    //  waiting for the message in case of no grouping call (hard)
     return ncclSuccess;
 }
 
