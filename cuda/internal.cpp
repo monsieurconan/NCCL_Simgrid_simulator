@@ -86,12 +86,14 @@ std::vector<s4u::Host *> cudaActor::getAllDevice() { return devices; }
 void gpuActor() {
     auto father = s4u::Actor::by_pid(s4u::this_actor::get_ppid());
     simgrid::s4u::ActorPtr me = simgrid::s4u::Actor::self();
+    s4u::ActivitySet act_set;
     while (true) {
         auto activities = me->extension<internalStream>()->pop();
         if (activities.size() > 0) {
             for (int i = 0; i < activities.size(); ++i) {
-                activities[i].wait();
+                act_set.push(activities[i].start());
             }
+            act_set.wait_all();
         }
         me->extension<internalStream>()->complete();
     }
@@ -133,27 +135,30 @@ std::vector<GpuActivity> internalStream::pop() {
 
 void internalStream::complete() { cpu_mb->put_init(dummypayload, 64)->detach(); }
 
-void Graph::add_to_graph(GpuActivity activity) { captured_activities.push_back(activity); }
+void Graph::add_to_graph(GpuActivity activity) { captured_activities.push_back({activity}); }
 
-Graph::Graph() { captured_activities = std::vector<simgrid::cuda::GpuActivity>(); }
+Graph::Graph() { captured_activities = std::vector<std::vector<simgrid::cuda::GpuActivity>>(); }
 
 void Graph::clear() { captured_activities.clear(); }
 
 void Graph::add_to_graph(std::vector<GpuActivity> activities) {
-    captured_activities.insert(captured_activities.end(), activities.begin(), activities.end());
+    captured_activities.push_back(activities);
 }
 
-std::vector<GpuActivity> Graph::get_captured_activities() { return captured_activities; }
+std::vector<std::vector<GpuActivity>> Graph::get_captured_activities() { return captured_activities; }
 
 void Graph::destroy() { captured_activities.clear(); }
 
 GraphExec::GraphExec() {}
 
-GraphExec::GraphExec(std::vector<GpuActivity> captured_activities_) {
+GraphExec::GraphExec(std::vector<std::vector<GpuActivity>> captured_activities_) {
     captured_activities = captured_activities_;
 }
 
-void GraphExec::launch(Stream stream) { stream.push(captured_activities); }
+void GraphExec::launch(Stream stream) { 
+    for(int i=0;i<captured_activities.size();++i)
+        stream.push(captured_activities[i]); 
+}
 
 Stream::Stream() {
     gpu = cuda_process()->getCurrentDevice();

@@ -30,23 +30,7 @@ void reduction(ncclRedOp_t op, void *recvbuf, void *tmpbuf, size_t n, ncclDataTy
                cudaStream_t stream) {
     auto execution = simgrid::cuda::GpuActivity::exec(n); // todo : better model
     stream->launch(execution);
-    /*switch (op)
-    {
-    case ncclSum:
-        stream->launch(execution);
-        plus(recvbuf, tmpbuf, n, datatype);
-        break;
-    case ncclProd:
-        break;
-    case ncclMax:
-        break;
-    case ncclMin:
-        break;
-    case ncclAvg:
-        break;
-    default:
-        break;
-    }*/
+    //todo: do the operation in the execution kernel
 }
 
 int ncclTypeSize(ncclDataType_t type) {
@@ -74,12 +58,10 @@ int ncclTypeSize(ncclDataType_t type) {
 ncclResult_t ncclReduce(const void *sendbuff, void *recvbuff, size_t count, ncclDataType_t datatype,
                         ncclRedOp_t op, int root, ncclComm_t comm, cudaStream_t stream) {
     if (comm->rank(stream) == root) {
-        ncclGroupStart();
         for (int i = 0; i < comm->nranks() - 1; ++i) {
             ncclRecv(nullptr /*recvbuff*/, count, datatype, i < root ? i : i + i, comm, stream);
             reduction(op, nullptr, nullptr, count, datatype, stream);
         }
-        ncclGroupEnd();
     } else {
         ncclSend(sendbuff, count, datatype, root, comm, stream);
     }
@@ -121,34 +103,21 @@ ncclResult_t ncclAllReduce(const void *sendbuff, void *recvbuff, size_t count,
     /*if(cudaMalloc(&tmpbuf, size)!= cudaSuccess)
         return ncclUnhandledCudaError;
     memcpy(tmpbuf, recvbuff, count*size);*/
-    ncclGroupStart();
     // recvreducesend part
     for (int i = 0; i < comm->nranks(); i++) {
-        /* ncclSend(tmpbuf+step*step_size,
-        step==comm->nranks()?step_size:step_size+count%comm->nranks(), datatype, next, comm,
-        stream); ncclRecv(recvbuff+(step_plus_1)*step_size,
-        step_plus_1==comm->nranks()?step_size:step_size+count%comm->nranks(), datatype, previous,
-        comm, stream); reduction(op, tmpbuf+step_plus_1, recvbuff+step_plus_1,
-        step_plus_1==comm->nranks()?step_size:step_size+count%comm->nranks(), datatype, stream); */
+        ncclGroupStart();
+        //todo: fix the buffer to have the correct operation
         ncclSend(nullptr, step_size, datatype, next, comm, stream);
         ncclRecv(nullptr, step_size, datatype, previous, comm, stream);
         reduction(op, nullptr, nullptr, step_size, datatype, stream);
-        /*step = step_plus_1;
-        step_plus_1 = (step_plus_1+1)%comm->nranks();*/
+        ncclGroupEnd();
     }
     // recvcopysend part
     for (int i = 0; i < comm->nranks() - 1; i++) {
-        /* ncclSend(tmpbuf+step*step_size,
-        step==comm->nranks()?step_size:step_size+count%comm->nranks(), datatype, next, comm,
-        stream); ncclRecv(recvbuff+(step_plus_1)*step_size,
-        step_plus_1==comm->nranks()?step_size:step_size+count%comm->nranks(), datatype, previous,
-        comm, stream); */
         ncclSend(nullptr, step_size, datatype, next, comm, stream);
         ncclRecv(nullptr, step_size, datatype, previous, comm, stream);
-        /*step = step_plus_1;
-        step_plus_1 = (step_plus_1+1)%comm->nranks();*/
+        ncclGroupEnd();
     }
-    ncclGroupEnd();
     return ncclSuccess;
 }
 
@@ -170,19 +139,18 @@ ncclResult_t ncclBcast(void *buff, size_t count, ncclDataType_t datatype, int ro
 ncclResult_t ncclReduceScatter(const void *sendbuff, void *recvbuff, size_t recvcount,
                                ncclDataType_t datatype, ncclRedOp_t op, ncclComm_t comm,
                                cudaStream_t stream) {
-    ncclGroupStart();
     int previous = comm->next_i_rank(stream, -1);
     int next = comm->next_i_rank(stream, 1);
     int self = comm->rank(stream);
     int size = recvcount * ncclTypeSize(datatype);
-    ncclGroupStart();
     // recvreducesend part
     for (int i = 0; i < comm->nranks(); i++) {
+        ncclGroupStart();
         ncclSend(nullptr, recvcount, datatype, next, comm, stream);
         ncclRecv(nullptr, recvcount, datatype, previous, comm, stream);
+        ncclGroupEnd();
         reduction(op, nullptr, nullptr, recvcount, datatype, stream);
     }
-    ncclGroupEnd();
     return ncclSuccess;
 }
 
@@ -234,9 +202,10 @@ ncclResult_t ncclScatter(const void *sendbuff, void *recvbuff, size_t sendcount,
     ncclGroupStart();
     if (comm->rank(stream) == root) {
         for (int r = 0; r < comm->nranks(); r++)
-            ncclRecv(nullptr, sendcount, datatype, r, comm, stream);
+            ncclSend(sendbuff, sendcount, datatype, r, comm, stream);
+            //ncclSend(sendbuff+r*sendcount, sendcount, datatype, r, comm, stream);
     }
-    ncclSend(sendbuff, sendcount, datatype, root, comm, stream);
+    ncclRecv(recvbuff, sendcount, datatype, root, comm, stream);
     ncclGroupEnd();
     return ncclSuccess;
 }

@@ -18,6 +18,7 @@ struct ncclRank {
 struct ncclComm {
     int unique_id;
     int ranks;
+    bool blocking=true;
     std::map<void *, void *> zero_copy_buffers;
     // mapping to stream
     std::vector<simgrid::s4u::Host *> ranks_to_gpus;
@@ -33,11 +34,12 @@ struct ncclComm {
 
 struct ncclActor {
     static simgrid::xbt::Extension<simgrid::s4u::Actor, ncclActor> EXTENSION_ID;
-
   public:
+    std::vector<cudaStream_t> streams_to_flush;
     int group_level = 0;
     int u_rank;
     ncclActor(int user_rank);
+    void flush();
 };
 
 ncclActor *nccl_actor();

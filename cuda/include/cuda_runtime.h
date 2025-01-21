@@ -39,12 +39,15 @@ struct cudaStream {
     cudaStreamCaptureMode mode;
     cudaStreamCaptureStatus status = cudaStreamCaptureStatusNone;
     cudaGraph_t graph;
+    std::vector<simgrid::cuda::GpuActivity> ac_buf;
 
   public:
     cudaStream();
     cudaStream(int flags);
     void launch(simgrid::cuda::GpuActivity new_activity);
     void launch(std::vector<simgrid::cuda::GpuActivity> new_activities);
+    void add_to_buf(simgrid::cuda::GpuActivity activity);
+    void flush_buf();
 };
 
 struct cudaGraphNode_t;

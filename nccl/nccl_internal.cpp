@@ -83,6 +83,13 @@ ncclActor::ncclActor(int user_rank) {
     u_rank = user_rank;
 }
 
+void ncclActor::flush() {
+    for(int i=0;i<streams_to_flush.size();++i){
+        streams_to_flush[i]->flush_buf();
+    }
+    streams_to_flush.clear();
+}
+
 ncclActor *nccl_actor() {
     simgrid::s4u::ActorPtr me = simgrid::s4u::Actor::self();
 

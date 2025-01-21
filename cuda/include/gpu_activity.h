@@ -7,7 +7,7 @@ namespace simgrid {
 namespace cuda {
 
 struct GpuActivity {
-    enum TYPE { EXEC, SEND, SEND_ASYNC, RECV, READ, WRITE, NONE };
+    enum TYPE { EXEC, SEND, RECV, READ, WRITE, NONE };
     TYPE type;
     double load;
     s4u::Mailbox *mb;
@@ -23,7 +23,7 @@ struct GpuActivity {
     static GpuActivity comm(s4u::Mailbox *mailbox, double bytes, TYPE send_or_recv,
                             void *buf = nullptr);
     static GpuActivity io(double bytes, TYPE read_or_write);
-    void wait();
+    s4u::ActivityPtr start();
 };
 } // namespace cuda
 } // namespace simgrid

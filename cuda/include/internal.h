@@ -39,23 +39,23 @@ struct internalStream {
 };
 
 struct Graph {
-    std::vector<GpuActivity> captured_activities;
+    std::vector<std::vector<GpuActivity>> captured_activities;
 
   public:
     Graph();
     void clear();
     void add_to_graph(GpuActivity activity);
     void add_to_graph(std::vector<GpuActivity> activities);
-    std::vector<GpuActivity> get_captured_activities();
+    std::vector<std::vector<GpuActivity>> get_captured_activities();
     void destroy();
 };
 
 struct GraphExec {
-    std::vector<GpuActivity> captured_activities;
+    std::vector<std::vector<GpuActivity>> captured_activities;
 
   public:
     GraphExec();
-    GraphExec(std::vector<GpuActivity> captured_activities_);
+    GraphExec(std::vector<std::vector<GpuActivity>> captured_activities_);
     void launch(Stream stream);
 };
 

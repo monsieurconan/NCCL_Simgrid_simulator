@@ -32,9 +32,6 @@ std::string print_type(cuda::GpuActivity::TYPE type) {
     switch (type) {
     case cuda::GpuActivity::EXEC:
         return "execution";
-    case cuda::GpuActivity::SEND_ASYNC: {
-        return "async-send";
-    }
     case cuda::GpuActivity::SEND: {
         return "send";
     }
@@ -53,73 +50,29 @@ std::string print_type(cuda::GpuActivity::TYPE type) {
 }
 } // namespace
 
-void simgrid::cuda::GpuActivity::wait() {
-    if (trace::tracingOn) {
+s4u::ActivityPtr simgrid::cuda::GpuActivity::start() {
         auto beginning = s4u::Engine::get_clock();
         switch (type) {
         case EXEC:
-            s4u::this_actor::execute(load);
-            break;
-        case SEND_ASYNC: {
-            mb->put_init(payload, load)->detach();
-            break;
-        }
+            return s4u::this_actor::exec_async(load);
         case SEND: {
-            mb->put(payload, load);
-            break;
+            return mb->put_init(payload, load);
         }
         case RECV: {
-            mb->get_async()->wait();
-            break;
+            return mb->get_async();
         }
         case READ: {
             auto disk = s4u::this_actor::get_host()->get_disks()[0];
-            disk->read(load);
-            break;
+            return disk->read_async(load);
         }
         case WRITE: {
             auto disk = s4u::this_actor::get_host()->get_disks()[0];
-            disk->write(load);
-            break;
+            return disk->write_async(load);
         }
         default:
             break;
         }
-        trace::tracer.print(print_type(type) + ", " + std::to_string(beginning) + ", " +
-                            std::to_string(s4u::Engine::get_clock()) + ", " +
-                            s4u::this_actor::get_host()->get_name() + ", " + std::to_string(load) +
-                            ", " + mb->get_name() + "\n");
-    } else {
-        switch (type) {
-        case EXEC:
-            s4u::this_actor::execute(load);
-            return;
-        case SEND_ASYNC: {
-            mb->put_init(dummybuf, load)->detach();
-            return;
-        }
-        case SEND: {
-            mb->put(dummybuf, load);
-            return;
-        }
-        case RECV: {
-            mb->get_async()->wait();
-            return;
-        }
-        case READ: {
-            auto disk = s4u::this_actor::get_host()->get_disks()[0];
-            disk->read(load);
-            return;
-        }
-        case WRITE: {
-            auto disk = s4u::this_actor::get_host()->get_disks()[0];
-            disk->write(load);
-            return;
-        }
-        default:
-            return;
-        }
-    }
+    return s4u::this_actor::exec_async(1);
 }
 
 } // namespace simgrid

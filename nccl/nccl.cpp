@@ -32,7 +32,8 @@ ncclResult_t ncclGroupStart() {
 
 ncclResult_t ncclGroupEnd() {
     nccl_actor()->group_level--;
-    if (nccl_actor()->group_level < 0) return ncclInvalidUsage;
+    if(nccl_actor()->group_level < 0) return ncclInvalidUsage;
+    if(nccl_actor()->group_level==0)nccl_actor()->flush();
     return ncclSuccess;
 }
 
@@ -73,13 +74,21 @@ ncclResult_t ncclCommCount(const ncclComm_t comm, int *count) {
 
 ncclResult_t ncclSend(const void *sendbuff, size_t count, ncclDataType_t datatype, int peer,
                       ncclComm_t comm, cudaStream_t stream) {
-    // communication part
-    auto send_type = simgrid::cuda::GpuActivity::SEND_ASYNC;
-    if (nccl_actor()->group_level == 0) send_type = simgrid::cuda::GpuActivity::SEND;
     auto message = simgrid::cuda::GpuActivity::comm(
-        comm->ranks_to_mailboxes[peer], count * sizeof(datatype), send_type, (void *)sendbuff);
-    stream->launch(message);
-    return ncclSuccess;
+        comm->ranks_to_mailboxes[peer], count * sizeof(datatype), simgrid::cuda::GpuActivity::SEND, (void *)sendbuff);
+    if (nccl_actor()->group_level == 0) stream->launch(message);
+    else{
+        stream->add_to_buf(message);
+        nccl_actor()->streams_to_flush.push_back(stream);
+    } 
+    if(nccl_actor()->group_level>0) 
+        return ncclSuccess;
+    else if(!comm->blocking)
+        return ncclInProgress;
+    else{
+        stream->stream.wait();
+        return ncclSuccess;
+    }
 }
 
 ncclResult_t ncclRecv(void *recvbuff, size_t count, ncclDataType_t datatype, int peer,
@@ -87,8 +96,19 @@ ncclResult_t ncclRecv(void *recvbuff, size_t count, ncclDataType_t datatype, int
     auto message = simgrid::cuda::GpuActivity::comm(comm->ranks_to_mailboxes[comm->rank(stream)],
                                                     count * sizeof(datatype),
                                                     simgrid::cuda::GpuActivity::RECV, recvbuff);
-    stream->launch(message);
-    return ncclSuccess;
+    if (nccl_actor()->group_level == 0) stream->launch(message);
+    else{
+        stream->add_to_buf(message);
+        nccl_actor()->streams_to_flush.push_back(stream);
+    } 
+    if(nccl_actor()->group_level>0) 
+        return ncclSuccess;
+    else if(!comm->blocking)
+        return ncclInProgress;
+    else{
+        stream->stream.wait();
+        return ncclSuccess;
+    }
 }
 
 ncclResult_t ncclGetUniqueId(ncclUniqueId *out) {

@@ -146,3 +146,12 @@ void cudaStream::launch(std::vector<simgrid::cuda::GpuActivity> new_activities) 
         graph.add_to_graph(new_activities);
     }
 }
+
+void cudaStream::add_to_buf(simgrid::cuda::GpuActivity activity) {
+    ac_buf.push_back(activity);
+}
+
+void cudaStream::flush_buf() {
+    launch(ac_buf);
+    ac_buf = std::vector<simgrid::cuda::GpuActivity>();
+}
