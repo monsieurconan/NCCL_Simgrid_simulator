@@ -16,15 +16,16 @@ struct Stream {
 
   public:
     Stream();
+    Stream(s4u::ActorPtr already_started_actor);
     void wait();
-    void push(GpuActivity new_activity);
-    void push(std::vector<GpuActivity> new_activities);
-    std::vector<GpuActivity> pop();
+    void push(GpuActivityPtr new_activity);
+    void push(std::vector<GpuActivityPtr> new_activities);
+    std::vector<GpuActivityPtr> pop();
 };
 
 struct internalStream {
     static simgrid::xbt::Extension<simgrid::s4u::Actor, internalStream> EXTENSION_ID;
-    std::queue<std::vector<GpuActivity>> kernel_calls;
+    std::queue<std::vector<GpuActivityPtr>> kernel_calls;
     s4u::Mailbox *stream_mb;
     s4u::Mailbox *cpu_mb;
     int kernel_count = 0;
@@ -32,31 +33,32 @@ struct internalStream {
   public:
     internalStream(s4u::ActorPtr stream_actor, s4u::ActorPtr cuda_actor);
     void wait();
-    simgrid::s4u::CommPtr push(GpuActivity new_activity);
-    simgrid::s4u::CommPtr push(std::vector<GpuActivity> new_activities);
-    std::vector<GpuActivity> pop();
+    simgrid::s4u::CommPtr push(GpuActivityPtr new_activity);
+    simgrid::s4u::CommPtr push(std::vector<GpuActivityPtr> new_activities);
+    std::vector<GpuActivityPtr> pop();
     void complete();
 };
 
 struct Graph {
-    std::vector<std::vector<GpuActivity>> captured_activities;
+    std::vector<std::vector<GpuActivityPtr>> captured_activities;
 
   public:
     Graph();
     void clear();
-    void add_to_graph(GpuActivity activity);
-    void add_to_graph(std::vector<GpuActivity> activities);
-    std::vector<std::vector<GpuActivity>> get_captured_activities();
+    void add_to_graph(GpuActivityPtr activity);
+    void add_to_graph(std::vector<GpuActivityPtr> activities);
+    std::vector<std::vector<GpuActivityPtr>> get_captured_activities();
     void destroy();
 };
 
 struct GraphExec {
-    std::vector<std::vector<GpuActivity>> captured_activities;
+    std::vector<std::vector<GpuActivityPtr>> captured_activities;
 
   public:
     GraphExec();
-    GraphExec(std::vector<std::vector<GpuActivity>> captured_activities_);
+    GraphExec(std::vector<std::vector<GpuActivityPtr>> captured_activities_);
     void launch(Stream stream);
+    ~GraphExec();
 };
 
 enum MODE { NORMAL, CAPTURE };

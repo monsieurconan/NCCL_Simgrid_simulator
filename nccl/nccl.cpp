@@ -74,8 +74,8 @@ ncclResult_t ncclCommCount(const ncclComm_t comm, int *count) {
 
 ncclResult_t ncclSend(const void *sendbuff, size_t count, ncclDataType_t datatype, int peer,
                       ncclComm_t comm, cudaStream_t stream) {
-    auto message = simgrid::cuda::GpuActivity::comm(
-        comm->ranks_to_mailboxes[peer], count * sizeof(datatype), simgrid::cuda::GpuActivity::SEND, (void *)sendbuff);
+    auto message = simgrid::cuda::CreateGpuComm(
+        comm->ranks_to_mailboxes[peer], count * sizeof(datatype), simgrid::cuda::COMM_TYPE::SEND, (void *)sendbuff);
     if (nccl_actor()->group_level == 0) stream->launch(message);
     else{
         stream->add_to_buf(message);
@@ -93,9 +93,9 @@ ncclResult_t ncclSend(const void *sendbuff, size_t count, ncclDataType_t datatyp
 
 ncclResult_t ncclRecv(void *recvbuff, size_t count, ncclDataType_t datatype, int peer,
                       ncclComm_t comm, cudaStream_t stream) {
-    auto message = simgrid::cuda::GpuActivity::comm(comm->ranks_to_mailboxes[comm->rank(stream)],
+    auto message = simgrid::cuda::CreateGpuComm(comm->ranks_to_mailboxes[comm->rank(stream)],
                                                     count * sizeof(datatype),
-                                                    simgrid::cuda::GpuActivity::RECV, recvbuff);
+                                                    simgrid::cuda::COMM_TYPE::RECV, recvbuff);
     if (nccl_actor()->group_level == 0) stream->launch(message);
     else{
         stream->add_to_buf(message);

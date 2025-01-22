@@ -4,75 +4,87 @@
 namespace simgrid {
 static int dummy_int = 1;
 static void *dummybuf = &dummy_int;
-cuda::GpuActivity::GpuActivity(double flops) : type{EXEC}, load{flops}, mb{nullptr} {}
 
-cuda::GpuActivity::GpuActivity(s4u::Mailbox *mailbox, double bytes, TYPE send_or_recv, void *buf)
+namespace cuda{
+
+GpuExec::GpuExec(double _flops) : flops{_flops}{}
+
+s4u::ActivityPtr GpuExec::start() { 
+    return s4u::this_actor::exec_async(flops);}
+
+std::string GpuExec::print_type() { 
+    return "execution"; }
+
+GpuActivityPtr GpuExec::copy() { 
+    return CreateGpuExec(flops); 
+}
+
+GpuComm::GpuComm(s4u::Mailbox *mailbox, double bytes, COMM_TYPE send_or_recv, void *buf)
     : type{send_or_recv}, load{bytes}, mb{mailbox}, payload{buf == nullptr ? dummybuf : buf} {
-    // assert(read_or_write==SEND || read_or_write==RECV);
 }
 
-cuda::GpuActivity::GpuActivity(double bytes, TYPE read_or_write)
-    : type{read_or_write}, load{bytes}, mb{nullptr} {
-    // assert(read_or_write==READ || read_or_write==WRITE);
-}
-
-cuda::GpuActivity cuda::GpuActivity::exec(double flops) { return GpuActivity(flops); }
-
-cuda::GpuActivity cuda::GpuActivity::comm(s4u::Mailbox *mailbox, double bytes, TYPE send_or_recv,
-                                          void *buf) {
-    return GpuActivity(mailbox, bytes, send_or_recv, buf);
-}
-
-cuda::GpuActivity cuda::GpuActivity::io(double bytes, TYPE read_or_write) {
-    return GpuActivity(bytes, read_or_write);
-}
-
-namespace {
-std::string print_type(cuda::GpuActivity::TYPE type) {
-    switch (type) {
-    case cuda::GpuActivity::EXEC:
-        return "execution";
-    case cuda::GpuActivity::SEND: {
-        return "send";
-    }
-    case cuda::GpuActivity::RECV: {
-        return "recv";
-    }
-    case cuda::GpuActivity::READ: {
-        return "read";
-    }
-    case cuda::GpuActivity::WRITE: {
-        return "write";
-    }
-    default:
-        return "default";
-    }
-}
-} // namespace
-
-s4u::ActivityPtr simgrid::cuda::GpuActivity::start() {
-        auto beginning = s4u::Engine::get_clock();
-        switch (type) {
-        case EXEC:
-            return s4u::this_actor::exec_async(load);
-        case SEND: {
+s4u::ActivityPtr GpuComm::start() {
+    if(type==SEND) 
             return mb->put_init(payload, load);
-        }
-        case RECV: {
-            return mb->get_async();
-        }
-        case READ: {
-            auto disk = s4u::this_actor::get_host()->get_disks()[0];
-            return disk->read_async(load);
-        }
-        case WRITE: {
-            auto disk = s4u::this_actor::get_host()->get_disks()[0];
-            return disk->write_async(load);
-        }
-        default:
-            break;
-        }
-    return s4u::this_actor::exec_async(1);
+        
+        else
+            return mb->get_async();//todo &payload
+        
+    
+ }
+
+std::string GpuComm::print_type() { 
+    if(type==COMM_TYPE::SEND) return "send";
+    else return "recv"; }
+
+GpuActivityPtr GpuComm::copy() { 
+    return CreateGpuComm(mb, load, type, payload); 
 }
+
+GpuIO::GpuIO(double _bytes, IO_TYPE read_or_write)
+    : type{read_or_write}, bytes{_bytes}{
+}
+
+s4u::ActivityPtr GpuIO::start() { 
+    if(type==READ){
+        auto disk = s4u::this_actor::get_host()->get_disks()[0];
+        return disk->read_async(bytes);
+    }
+    else{
+        auto disk = s4u::this_actor::get_host()->get_disks()[0];
+        return disk->write_async(bytes);
+    }
+ }
+
+std::string GpuIO::print_type() { if(type==IO_TYPE::READ) return "read";
+else return "write"; }
+
+GpuActivityPtr GpuIO::copy() { 
+    return CreateGpuIO(bytes, type); 
+}
+
+template <typename... Args>
+GpuFn<Args...>::GpuFn(double flops, std::function<int(Args...)> fn, Args &&...args) : 
+function(std::move(fn)), arguments(std::forward<Args>(args)...) {}
+
+template <typename... Args> s4u::ActivityPtr GpuFn<Args...>::start() {
+    std::apply(function, arguments);
+    return s4u::this_actor::exec_async(flops);
+}
+
+template <typename... Args> 
+std::string GpuFn<Args...>::print_type() { 
+    return "function"; 
+}
+
+template <typename... Args> 
+GpuActivity *GpuFn<Args...>::copy() { 
+    return CreateGpuFn<Args...>(flops, function, arguments); 
+}
+
+GpuActivity::~GpuActivity() {}
+
+
+} // namespace cuda
 
 } // namespace simgrid

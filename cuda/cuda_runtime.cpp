@@ -131,15 +131,15 @@ cudaStream::cudaStream(int flags) : mode{cudaStreamCaptureModeRelaxed} {
     // todo: the flags
 }
 
-void cudaStream::launch(simgrid::cuda::GpuActivity new_activity) {
+void cudaStream::launch(simgrid::cuda::GpuActivityPtr new_activity) {
     if (mode == cudaStreamCaptureModeRelaxed) {
-        stream.push(new_activity);
+        stream.push((new_activity));
     } else {
         graph.add_to_graph(new_activity);
     }
 }
 
-void cudaStream::launch(std::vector<simgrid::cuda::GpuActivity> new_activities) {
+void cudaStream::launch(std::vector<simgrid::cuda::GpuActivityPtr> new_activities) {
     if (mode = cudaStreamCaptureModeRelaxed) {
         stream.push(new_activities);
     } else {
@@ -147,11 +147,11 @@ void cudaStream::launch(std::vector<simgrid::cuda::GpuActivity> new_activities) 
     }
 }
 
-void cudaStream::add_to_buf(simgrid::cuda::GpuActivity activity) {
+void cudaStream::add_to_buf(simgrid::cuda::GpuActivityPtr activity) {
     ac_buf.push_back(activity);
 }
 
 void cudaStream::flush_buf() {
     launch(ac_buf);
-    ac_buf = std::vector<simgrid::cuda::GpuActivity>();
+    ac_buf = std::vector<simgrid::cuda::GpuActivityPtr>();
 }

@@ -54,21 +54,21 @@ s4u::ActivityPtr cudaActor::send(COPYTYPE type, simgrid::s4u::ActorPtr stream_ac
     switch (type) {
     case HostToDevice:
         stream_actor->extension<internalStream>()->push(
-            {GpuActivity::comm(mb, count, GpuActivity::RECV),
-             GpuActivity::io(count, GpuActivity::WRITE)});
+            {CreateGpuComm(mb, count, COMM_TYPE::RECV),
+             CreateGpuIO(count, IO_TYPE::WRITE)});
         return mb->put_init(dummypayload, count)->start();
     case HostToHost:
         return s4u::Comm::sendto_async(s4u::this_actor::get_host(), s4u::this_actor::get_host(),
                                        count);
     case DeviceToHost:
         stream_actor->extension<internalStream>()->push(
-            {GpuActivity::io(count, GpuActivity::READ),
-             GpuActivity::comm(mb, count, GpuActivity::SEND)});
+            {CreateGpuIO(count, IO_TYPE::READ),
+             CreateGpuComm(mb, count, COMM_TYPE::SEND)});
         return mb->get_init()->start();
     case DeviceToDevice:
         stream_actor->extension<internalStream>()->push(
-            {GpuActivity::io(count, GpuActivity::READ),
-             GpuActivity::io(count, GpuActivity::WRITE)});
+            {CreateGpuIO(count, IO_TYPE::READ),
+             CreateGpuIO(count, IO_TYPE::WRITE)});
     }
     return s4u::this_actor::exec_async(1);
 }
@@ -91,7 +91,8 @@ void gpuActor() {
         auto activities = me->extension<internalStream>()->pop();
         if (activities.size() > 0) {
             for (int i = 0; i < activities.size(); ++i) {
-                act_set.push(activities[i].start());
+                act_set.push(activities[i]->start());
+                delete activities[i];
             }
             act_set.wait_all();
         }
@@ -116,17 +117,17 @@ void internalStream::wait() {
     }
 }
 
-simgrid::s4u::CommPtr internalStream::push(GpuActivity new_activity) {
-    return push(std::vector<GpuActivity>{new_activity});
+simgrid::s4u::CommPtr internalStream::push(GpuActivityPtr new_activity) {
+    return push({new_activity});
 }
 
-simgrid::s4u::CommPtr internalStream::push(std::vector<GpuActivity> new_activities) {
-    kernel_calls.push(std::vector<GpuActivity>(new_activities));
+simgrid::s4u::CommPtr internalStream::push(std::vector<GpuActivityPtr> new_activities) {
+    kernel_calls.push(std::vector<GpuActivityPtr>(new_activities));
     kernel_count++;
     return stream_mb->put_init(dummypayload, new_activities.size() * 64);
 }
 
-std::vector<GpuActivity> internalStream::pop() {
+std::vector<GpuActivityPtr> internalStream::pop() {
     stream_mb->get_init()->wait();
     auto res = kernel_calls.front();
     kernel_calls.pop();
@@ -135,29 +136,49 @@ std::vector<GpuActivity> internalStream::pop() {
 
 void internalStream::complete() { cpu_mb->put_init(dummypayload, 64)->detach(); }
 
-void Graph::add_to_graph(GpuActivity activity) { captured_activities.push_back({activity}); }
+void Graph::add_to_graph(GpuActivityPtr activity) { 
+    captured_activities.push_back({activity}); }
 
-Graph::Graph() { captured_activities = std::vector<std::vector<simgrid::cuda::GpuActivity>>(); }
+Graph::Graph() { captured_activities = std::vector<std::vector<simgrid::cuda::GpuActivityPtr>>(); }
 
 void Graph::clear() { captured_activities.clear(); }
 
-void Graph::add_to_graph(std::vector<GpuActivity> activities) {
+void Graph::add_to_graph(std::vector<GpuActivityPtr> activities) {
     captured_activities.push_back(activities);
 }
 
-std::vector<std::vector<GpuActivity>> Graph::get_captured_activities() { return captured_activities; }
+std::vector<std::vector<GpuActivityPtr>> Graph::get_captured_activities() { return captured_activities; }
 
 void Graph::destroy() { captured_activities.clear(); }
 
 GraphExec::GraphExec() {}
 
-GraphExec::GraphExec(std::vector<std::vector<GpuActivity>> captured_activities_) {
+GraphExec::GraphExec(std::vector<std::vector<GpuActivityPtr>> captured_activities_) {
     captured_activities = captured_activities_;
 }
 
+
 void GraphExec::launch(Stream stream) { 
-    for(int i=0;i<captured_activities.size();++i)
-        stream.push(captured_activities[i]); 
+    for (const auto& activity_vec : captured_activities) {
+        std::vector<GpuActivityPtr> copied_activities;
+        copied_activities.reserve(activity_vec.size());
+        for (const auto& activity_ptr : activity_vec) {
+            if (activity_ptr) {// no nullptr
+                // copy activitites so the original don't get destroyed
+                copied_activities.push_back(activity_ptr->copy());
+            }
+        }
+        stream.push(copied_activities);
+    }
+
+}
+
+GraphExec::~GraphExec() {
+    for(size_t i = 0 ; i < captured_activities.size();++i){
+        for(size_t j = 0; j<captured_activities[i].size();++j){
+            delete captured_activities[i][j];
+        }
+    }
 }
 
 Stream::Stream() {
@@ -169,19 +190,26 @@ Stream::Stream() {
     streamActor->start(gpuActor);
 }
 
+// for mpi-gpu actors
+Stream::Stream(s4u::ActorPtr streamActor) {
+    gpu = cuda_process()->getCurrentDevice();
+    streamActor->extension_set<internalStream>(new internalStream(streamActor, s4u::Actor::self()));
+    streamActor->start(gpuActor);
+}
+
 void Stream::wait() { return streamActor->extension<internalStream>()->wait(); }
 
-void Stream::push(GpuActivity new_activity) {
+void Stream::push(GpuActivityPtr new_activity) {
     auto comm = streamActor->extension<internalStream>()->push(new_activity);
     comm->detach();
 }
 
-void Stream::push(std::vector<GpuActivity> new_activities) {
+void Stream::push(std::vector<GpuActivityPtr> new_activities) {
     auto comm = streamActor->extension<internalStream>()->push(new_activities);
     comm->wait();
 }
 
-std::vector<GpuActivity> Stream::pop() { return streamActor->extension<internalStream>()->pop(); }
+std::vector<GpuActivityPtr> Stream::pop() { return streamActor->extension<internalStream>()->pop(); }
 
 } // namespace cuda
 } // namespace simgrid
